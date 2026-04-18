@@ -47,16 +47,18 @@ class MEPIOApp(ctk.CTk):
         # 2. Show the selected page
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
-    def button_callback(self):
-        print("button pressed")
-    def Inventory(self):
-        print("button pressed")
-    def Dashboard(self):
-        print("button pressed")
-    def button3(self):
-        print("button pressed")
-    def button4(self):
-        print("button pressed")
+# Define individual page classes (for better organization)
+class DashboardPage(ctk.CTkFrame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        label = ctk.CTkLabel(self, text="Dashboard View", font=("Arial", 24))
+        label.pack(pady=20)
+
+class InventoryPage(ctk.CTkFrame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        label = ctk.CTkLabel(self, text="Inventory Management", font=("Arial", 24))
+        label.pack(pady=20)
 
 if __name__ == "__main__":
     app = MEPIOApp()
