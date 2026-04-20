@@ -65,11 +65,11 @@ password_entry = make_field(right, y=206, icon="🔒", placeholder="Password:  "
 remember_me = tk.Checkbutton(right, text="Remember me", bg="#ffffff", font=("Helvetica", 8), activebackground="#ffffff",relief="flat", bd=0)
 remember_me.place(x=44, y= 250)
 
-forgot_password = tk.Label(right, text = "Forgot Password? ", bg = "#ffffff" , relief = "flat" , bd = 0 )
+forgot_password = tk.Label(right, text = "Forgot Password? ", bg = "#ffffff" , relief = "flat" ,font=("Helvetica", 8), bd = 0 )
 forgot_password.place(x=290, y= 253)
 
 login_btn = tk.Button(right, text="LOGIN", font=("Arial", 12, "bold"), bg="#3498db",
-                      fg="white", relief="flat",
+                      fg="black", relief="flat",
                        activebackground= "#2980b9" , activeforeground="white",  width=30, height=2, cursor="hand2")
 login_btn.place(x=44, y=300, width=350)
 
@@ -85,7 +85,7 @@ login_btn.place(x=44, y=300, width=350)
 
 
 
-root.mainloop()
+
 
 
 
