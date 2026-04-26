@@ -12,7 +12,7 @@ root.resizable(True, True)
 left = tk.Canvas(root, width=280, height=440, highlightthickness=0, bg="#2d6cdf")
 left.place(x=0, y=0)
 left.create_oval(-60, -60, 240, 240, fill="#4a84e8", outline="")
-left.create_text(120, 100, text="MEPIO", font=("Georgia", 55, "bold"), fill="white", anchor="center")
+left.create_text(120, 100, text="MEPIO", font=("Georgia", 48, "bold"), fill="white", anchor="center")
 left.create_text(36, 330, text="Welcome", font=("Helvetica", 18, "bold"), fill="white", anchor="w")
 left.create_text(36, 358, text="Micro-E-commerce Profit\n& Inventory Optimizer", font=("Helvetica", 9), fill="#b8d4ff", anchor="w", justify="left")
 
