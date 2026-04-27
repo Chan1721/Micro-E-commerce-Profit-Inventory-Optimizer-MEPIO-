@@ -1,14 +1,15 @@
 import customtkinter as CTk
 import tkinter as tk
+from registerpage import open_register_window
 
-# 1. Basic Window Configuration
+# Basic Window Configuration
 root = CTk.CTk()
 root.title("MEPIO - Login")
 root.geometry("720x440")
 root.configure(fg_color="#f0f4ff")
 root.resizable(True, True)
 
-# 2. Left Brand Area 
+# Left Brand Area 
 left = tk.Canvas(root, width=280, height=440, highlightthickness=0, bg="#2d6cdf")
 left.place(x=0, y=0)
 left.create_oval(-60, -60, 240, 240, fill="#4a84e8", outline="")
@@ -16,9 +17,15 @@ left.create_text(120, 100, text="MEPIO", font=("Georgia", 48, "bold"), fill="whi
 left.create_text(36, 330, text="Welcome", font=("Helvetica", 18, "bold"), fill="white", anchor="w")
 left.create_text(36, 358, text="Micro-E-commerce Profit\n& Inventory Optimizer", font=("Helvetica", 9), fill="#b8d4ff", anchor="w", justify="left")
 
-# 3. Right Login Form Area
+# Right Login Form Area
 right = CTk.CTkFrame(root, fg_color="#ffffff", width=440, height=440, corner_radius=0)
 right.place(x=280, y=0)
+
+
+
+def open_register():
+    root.withdraw()
+    open_register_window(root)
 
 # Divider Shadow
 shadow = CTk.CTkFrame(root, fg_color="#d0d8f0", width=4, height=440, corner_radius=0)
@@ -28,8 +35,14 @@ shadow.place(x=280, y=0)
 title_label = CTk.CTkLabel(right, text="Welcome to MEPIO", font=("Helvetica", 17, "bold"), fg_color="#ffffff", text_color="#1a1a1a")
 title_label.place(x=44, y=68)
 
-register = CTk.CTkLabel(right, text="Don't have an account? Create your account,\nit takes less than a minute.", font=("Helvetica", 8), fg_color="#ffffff", text_color="#999999", justify="left")
+register = CTk.CTkLabel(right, text="Don't have an account? Create your account,\nit takes less than a minute.", font=("Helvetica", 10), fg_color="#ffffff", text_color="#999999", justify="left")
 register.place(x=44, y=96)
+
+register_btn = CTk.CTkButton(right, text="Register Now", font=("Helvetica", 10, "bold", "underline"),
+                             fg_color="transparent", hover_color="#f0f4ff", text_color="#3498db",
+                             width=70, height=20, cursor="hand2", 
+                             command=open_register) 
+register_btn.place(x=168, y=110)
 
 
 def make_field(parent, y, icon, title, show=None):
