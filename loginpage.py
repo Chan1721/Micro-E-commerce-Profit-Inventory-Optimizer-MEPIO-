@@ -39,7 +39,7 @@ register = CTk.CTkLabel(right, text="Don't have an account? Create your account,
 register.place(x=44, y=96)
 
 register_btn = CTk.CTkButton(right, text="Register Now", font=("Helvetica", 10, "bold", "underline"),
-                             fg_color="transparent", hover_color="#f0f4ff", text_color="#3498db",
+                             fg_color= "transparent" ,hover_color="#f0f4ff", text_color="#3498db",
                              width=70, height=20, cursor="hand2", 
                              command=open_register) 
 register_btn.place(x=168, y=110)
