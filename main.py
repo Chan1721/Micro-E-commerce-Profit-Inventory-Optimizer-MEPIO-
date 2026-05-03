@@ -2,7 +2,7 @@ import customtkinter as ctk #shortcut for customtkinter as ctk
 import tkinter as tk 
 
 #importing the login page
-from loginpage import root
+# from loginpage import root
 
 app = ctk.CTk() # intializes the app, this is the main window of the program 
 class MEPIOApp(ctk.CTk):
@@ -60,9 +60,6 @@ class MEPIOApp(ctk.CTk):
         self.pages["Calculator"] = ctk.CTkFrame(self)
         ctk.CTkLabel(self.pages["Calculator"], text="Profit Calculator", font=("Arial", 24)).pack()
 
-        self.profit_label = ctk.CTkLabel(self, text="RM 0.00", font=("Arial", 24, "bold"))
-        self.profit_label.place(x=50, y=100)
-
         #   Initialize Settings page
         self.pages["Settings"] = ctk.CTkFrame(self)
         ctk.CTkLabel(self.pages["Settings"], text="Settings", font=("Arial", 24)).pack()
@@ -77,7 +74,10 @@ class MEPIOApp(ctk.CTk):
         
         # 2. Show the selected page
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
-
+    # yj: still in another branch to complete.
+    def show_Dashboard(self):
+        self.geometry("1100x600")
+        
 if __name__ == "__main__":
     app = MEPIOApp()
     app.mainloop()

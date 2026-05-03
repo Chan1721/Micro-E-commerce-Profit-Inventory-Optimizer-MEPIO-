@@ -1,0 +1,60 @@
+import customtkinter as ctk
+import tkinter as tk
+import sqlite3
+
+class SearchEngine:
+    def __init__(self, db_path="mepio_database.db"):
+        self.db_path = db_path
+
+    # --- Create a filter function (supporting name and price) ---
+    def filter_products(self, name=None, min_price=None, max_price=None):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Build the SQL query dynamically based on provided filters
+        query = "SELECT * FROM Products WHERE 1=1"
+        params = []
+
+        if name:
+            query += " AND product_name LIKE ?"
+            params.append(f"%{name}%")
+        
+        if min_price is not None:
+            query += " AND selling_price >= ?"
+            params.append(min_price)
+
+        if max_price is not None:
+            query += " AND selling_price <= ?"
+            params.append(max_price)
+
+        cursor.execute(query, params)
+        results = cursor.fetchall()
+        conn.close()
+
+        # --- Implement "Not Found" logic ---
+        if not results:
+            return "Not Found"
+        
+        return results
+
+    # --- Write a sorting script ---
+    def sort_data(self, data_list, sort_by="stock", reverse=True):
+        """
+        data_list: Database query results as a list of tuples
+        sort_by: 'stock' (inventory) or 'profit' (profit)
+        """
+        if data_list == "Not Found":
+            return data_list
+
+        # assume the order is: (ID, Name, Price, Cost, Stock, Profit...)
+        # Database Schema (Index)
+        index_map = {
+            "stock": 4,   # assume inventory is in the 5th column
+            "profit": 5   # assume profit is in the 6th column
+        }
+
+        target_index = index_map.get(sort_by, 4)
+        
+        # Sort the data based on the target index
+        sorted_list = sorted(data_list, key=lambda x: x[target_index], reverse=reverse)
+        return sorted_list
