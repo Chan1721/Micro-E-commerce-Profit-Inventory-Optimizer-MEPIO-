@@ -3,6 +3,8 @@ import tkinter as tk
 
 #importing the login page
 # from loginpage import root
+from loginpage import root
+from inventorypage import InventoryPage
 
 class MEPIOApp(ctk.CTk):
     def __init__(self):
@@ -61,6 +63,9 @@ class MEPIOApp(ctk.CTk):
         # Display selected page in the main container area[cite: 1]
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
+        #   Initialize Inventory page
+        self.pages["inv"] = InventoryPage(self)
+        ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("Arial", 24)).pack()
 
 # --- UI Templates ---[cite: 1]
 
