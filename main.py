@@ -64,7 +64,7 @@ class MEPIOApp(ctk.CTk):
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
         #   Initialize Inventory page
-        self.pages["inv"] = InventoryPage(self)
+        self.pages["inv"] = InventoryPage(self, self)
         ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("Arial", 24)).pack()
 
 # --- UI Templates ---[cite: 1]
