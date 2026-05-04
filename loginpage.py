@@ -2,6 +2,8 @@ import customtkinter as CTk
 import tkinter as tk
 from registerpage import open_register_window
 
+CTk.set_appearance_mode("light")
+
 # Basic Window Configuration
 root = CTk.CTk()
 root.title("MEPIO - Login")
