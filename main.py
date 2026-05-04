@@ -63,10 +63,6 @@ class MEPIOApp(ctk.CTk):
         # Display selected page in the main container area[cite: 1]
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
-        #   Initialize Inventory page
-        self.pages["inv"] = InventoryPage(self)
-        ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("Arial", 24)).pack()
-
 # --- UI Templates ---[cite: 1]
 
 class BasePage(ctk.CTkFrame):
@@ -112,13 +108,6 @@ class DashboardPage(BasePage):
             "• Lazada: Standard Category-based Commission"
         )
         ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("Arial", 13), text_color="#bbbbbb").pack(pady=10)
-
-class InventoryPage(BasePage):
-    def __init__(self, parent, controller):
-        super().__init__(parent, controller, "Stock Management System")
-        # Placeholder for teammate's work
-        ctk.CTkLabel(self, text="Inventory modules are currently being integrated by the Database Lead.", 
-                     text_color="gray", font=("Arial", 14, "italic")).pack(expand=True)
 
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):

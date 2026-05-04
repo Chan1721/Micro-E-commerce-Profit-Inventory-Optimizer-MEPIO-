@@ -2,13 +2,18 @@ import customtkinter as ctk
 import tkinter as tk 
 
 class InventoryPage(ctk.CTkFrame):
-    def __init__(self, parent = None):
+    def __init__(self,parent, controller = None,):
         super().__init__(parent)
+        self.controller = controller
         self.stock = {}
 
     # GUI stuffs
-        self.label = label = ctk.CTkLabel(self, text = "Inventory Management", font = ("Arial", 20))
-        self.label.pack(pady=10)
+        self.header = ctk.CTkLabel(self, text="Inventory Management", font=("Helvetica", 24, "bold"), text_color="#3498db")
+        self.header.pack(pady=(20, 10), padx=20, anchor="w")
+        
+        # Decorative separator line
+        line = ctk.CTkFrame(self, height=2, fg_color="#3d3d3d")
+        line.pack(fill="x", padx=20, pady=(0, 20))
 
         self.entry_item = ctk.CTkEntry(self, placeholder_text = "Item name")
         self.entry_item.pack(pady = 5)
