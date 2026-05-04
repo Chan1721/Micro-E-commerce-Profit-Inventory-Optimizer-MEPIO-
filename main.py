@@ -3,6 +3,7 @@ import tkinter as tk
 
 #importing the login page
 from loginpage import root
+from inventorypage import InventoryPage
 
 app = ctk.CTk() # intializes the app, this is the main window of the program 
 class MEPIOApp(ctk.CTk):
@@ -49,7 +50,7 @@ class MEPIOApp(ctk.CTk):
         ctk.CTkLabel(self.pages["dash"], text="Welcome to Dashboard", font=("Arial", 24)).pack()
 
         #   Initialize Inventory page
-        self.pages["inv"] = ctk.CTkFrame(self)
+        self.pages["inv"] = InventoryPage(self)
         ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("Arial", 24)).pack()
 
         #   Initialize Logistics page
