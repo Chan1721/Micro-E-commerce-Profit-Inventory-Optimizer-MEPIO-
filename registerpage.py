@@ -87,6 +87,8 @@ def open_register_window(login_root):
         answer_entry = CTk.CTkEntry(sec_window, width=320, height=40, placeholder_text="Enter your answer")
         answer_entry.place(x=40, y=120)
 
+        CTk.CTkLabel(sec_window, text="⚠️ Please remember this answer for password recovery.", font=("Helvetica", 11), text_color="#d9534f").place(x=40, y=165)
+
         def final_answer():
             answer = answer_entry.get()
             if answer == "":

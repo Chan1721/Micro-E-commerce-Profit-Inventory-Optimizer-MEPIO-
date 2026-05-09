@@ -1,6 +1,7 @@
 import customtkinter as CTk
 import tkinter as tk
 from registerpage import open_register_window
+import tkinter.messagebox as messagebox
 
 CTk.set_appearance_mode("light")
 
@@ -35,16 +36,18 @@ shadow.place(x=280, y=0)
 
 # Titles and Headers
 title_label = CTk.CTkLabel(right, text="Welcome to MEPIO", font=("Helvetica", 17, "bold"), fg_color="#ffffff", text_color="#1a1a1a")
-title_label.place(x=44, y=68)
+title_label.place(x=44, y=95)
 
-register = CTk.CTkLabel(right, text="Don't have an account? Create your account,\nit takes less than a minute.", font=("Helvetica", 10), fg_color="#ffffff", text_color="#999999", justify="left")
-register.place(x=44, y=96)
+no_account_lbl = CTk.CTkLabel(right, text="Don't have an account?", font=("Helvetica", 12), text_color="#7a7a7a")
+no_account_lbl.place(x=100, y=380) 
 
-register_btn = CTk.CTkButton(right, text="Register Now", font=("Helvetica", 10, "bold", "underline"),
-                             fg_color= "transparent" ,hover_color="#f0f4ff", text_color="#3498db",
-                             width=70, height=20, cursor="hand2", 
-                             command=open_register) 
-register_btn.place(x=168, y=110)
+   
+register_btn = CTk.CTkButton(right, text="Register Now", font=("Helvetica", 12, "bold", "underline"), 
+                                 fg_color="transparent", hover_color="#f0f4ff", text_color="#3498db",
+                                 width=80, height=20, cursor="hand2", anchor="w",
+                                 command=open_register)
+register_btn.place(x=245, y=384)
+
 
 
 def make_field(parent, y, icon, title, show=None):
@@ -72,7 +75,28 @@ forgot_password = CTk.CTkLabel(right, text="Forgot Password?", fg_color="#ffffff
 forgot_password.place(x=290, y=290)
 
 
-login_btn = CTk.CTkButton(right, text="LOGIN", font=("Arial", 14, "bold"), fg_color="#3498db", text_color="white", width=350, height=45, hover_color="#2980b9", cursor="hand2")
+def handle_login(): #fake id and password to jump in to dashboard
+    username = username_entry.get()
+    password = password_entry.get()
+
+    if username == "admin" and password == "123":
+        root.quit()
+
+    else: 
+        messagebox.showerror("Error", "Wrong password! Try admin / 123")    
+
+
+
+login_btn = CTk.CTkButton(right, text="LOGIN", font=("Arial", 14, "bold"), fg_color="#3498db", text_color="white", width=350, height=45, hover_color="#2980b9", cursor="hand2", command = handle_login)
 login_btn.place(x=44, y=340)
 
 root.mainloop()
+
+try:
+    root.destroy()  
+except:
+    pass
+
+import main         
+app = main.MEPIOApp() 
+app.mainloop()
