@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import tkinter as tk 
+ctk.set_appearance_mode("light")
 
 class InventoryPage(ctk.CTkFrame):
     def __init__(self, parent = None):

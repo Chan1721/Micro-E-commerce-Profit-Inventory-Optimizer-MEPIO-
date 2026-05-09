@@ -1,5 +1,6 @@
 import customtkinter as ctk #shortcut for customtkinter as ctk
 import tkinter as tk 
+ctk.set_appearance_mode("light")
 
 #importing the login page
 
@@ -17,7 +18,7 @@ class MEPIOApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # --- Sidebar Configuration ---[cite: 1]
-        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
+        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color="#FFFFFF")
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="MEPIO MENU", font=("Helvetica", 20, "bold"))
@@ -36,7 +37,9 @@ class MEPIOApp(ctk.CTk):
 
         # Generate sidebar buttons dynamically to avoid variable conflicts[cite: 1]
         for text, page_key in nav_items:
-            btn = ctk.CTkButton(self.sidebar_frame, text=text, 
+            btn = ctk.CTkButton(self.sidebar_frame, text=f"  {text}", 
+                                fg_color="transparent", text_color="#475569", hover_color="#e2e8f0",
+                                font=("Helvetica", 14, "bold"), anchor="w",
                                 command=lambda k=page_key: self.show_page(k))
             btn.pack(pady=5, padx=10, fill="x")
 
@@ -65,19 +68,19 @@ class MEPIOApp(ctk.CTk):
 
         #   Initialize Inventory page
 
-        ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("Arial", 24)).pack()
+        ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("Roboto", 24)).pack()
 
 # --- UI Templates ---[cite: 1]
 
 class BasePage(ctk.CTkFrame):
     """Template class for all pages to ensure UI consistency."""
     def __init__(self, parent, controller, title_text):
-        super().__init__(parent, fg_color="#2b2b2b") 
+        super().__init__(parent, fg_color="transparent") 
         self.header = ctk.CTkLabel(self, text=title_text, font=("Helvetica", 24, "bold"), text_color="#3498db")
         self.header.pack(pady=(20, 10), padx=20, anchor="w")
         
         # Decorative separator line
-        line = ctk.CTkFrame(self, height=2, fg_color="#3d3d3d")
+        line = ctk.CTkFrame(self, height=2, fg_color="#E0E0E0")
         line.pack(fill="x", padx=20, pady=(0, 20))
 
 class DashboardPage(BasePage):
@@ -96,29 +99,29 @@ class DashboardPage(BasePage):
         ]
         
         for name, value in metrics:
-            card = ctk.CTkFrame(self.stats_frame, corner_radius=10, fg_color="#333333")
+            card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color="#FFFFFF")
             card.pack(side="left", padx=10, fill="both", expand=True)
-            ctk.CTkLabel(card, text=name, font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
-            ctk.CTkLabel(card, text=value, font=("Arial", 18, "bold")).pack(pady=(5, 15))
+            ctk.CTkLabel(card, text=name, font=("Roboto", 12), text_color="gray").pack(pady=(15, 0))
+            ctk.CTkLabel(card, text=value, font=("Roboto", 18, "bold")).pack(pady=(5, 15))
 
         # Platform Fee Section (Result of Market Research)
-        self.fee_info = ctk.CTkFrame(self, corner_radius=12, fg_color="#252525")
+        self.fee_info = ctk.CTkFrame(self, corner_radius=12, fg_color="#FFFFFF")
         self.fee_info.pack(pady=30, padx=30, fill="both", expand=True)
-        ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("Arial", 16, "bold")).pack(pady=15)
+        ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("Roboto", 16, "bold")).pack(pady=15)
         
         fee_text = (
             "• Shopee MY: 4.0% Commission + 2.12% Transaction Fee\n"
             "• TikTok Shop: 2.0% Marketplace Fee + Service Fee\n"
             "• Lazada: Standard Category-based Commission"
         )
-        ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("Arial", 13), text_color="#bbbbbb").pack(pady=10)
+        ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("Roboto", 13), text_color="#bbbbbb").pack(pady=10)
 
 class InventoryPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Stock Management System")
         # Placeholder for teammate's work
         ctk.CTkLabel(self, text="Inventory modules are currently being integrated by the Database Lead.", 
-                     text_color="gray", font=("Arial", 14, "italic")).pack(expand=True)
+                     text_color="gray", font=("Roboto", 14, "italic")).pack(expand=True)
 
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):
@@ -150,7 +153,7 @@ class CalculatorPage(BasePage):
 class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Data Analytics")
-        ctk.CTkLabel(self, text="Profit Trends & Performance Analysis", font=("Arial", 14)).pack(pady=10)
+        ctk.CTkLabel(self, text="Profit Trends & Performance Analysis", font=("Roboto", 14)).pack(pady=10)
         
         # Visual placeholder for charts
         chart_box = ctk.CTkFrame(self, height=300, fg_color="#1a1a1a")
@@ -173,7 +176,7 @@ class HelpPage(BasePage):
         super().__init__(parent, controller, "Help & Support Center")
         
         # User manual textbox
-        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Arial", 12))
+        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Roboto", 12))
         help_text.pack(pady=10, padx=20, fill="both", expand=True)
         help_text.insert("0.0", "MEPIO SYSTEM DOCUMENTATION\n\n"
                                "1. DASHBOARD: View real-time profit and revenue metrics.\n"
