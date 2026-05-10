@@ -131,17 +131,91 @@ class CalculatorPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Profit Calculator")
         
-        # Calculation input area
-        input_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="#252525")
-        input_frame.pack(pady=10, padx=20, fill="x")
+        # --- Main Container for 2-Column Layout ---
+        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # --- Left Column: Inputs ---
+        self.input_frame = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color="#252525")
+        self.input_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        ctk.CTkLabel(self.input_frame, text="Transaction Details", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=15)
+
+        self.entries = {}
+        fields = [
+            ("Cost Price (RM)", ""),
+            ("Selling Price (RM)", ""),
+            ("Platform Fee (%)", ""),  # Default combined fee for Shopee/TikTok
+            ("Shipping Fee (RM)", ""),
+            ("Packaging Cost (RM)", "")
+        ]
+
+        for label_text, default_val in fields:
+            row = ctk.CTkFrame(self.input_frame, fg_color="transparent")
+            row.pack(fill="x", padx=20, pady=5)
+            
+            lbl = ctk.CTkLabel(row, text=label_text, width=150, anchor="w")
+            lbl.pack(side="left")
+            
+            entry = ctk.CTkEntry(row, placeholder_text=default_val)
+            entry.insert(0, default_val)
+            entry.pack(side="right", fill="x", expand=True)
+            self.entries[label_text] = entry
+
+        self.calc_btn = ctk.CTkButton(self.input_frame, text="Calculate Profit", 
+                                      fg_color="#27ae60", hover_color="#219150", 
+                                      font=("Helvetica", 14, "bold"),
+                                      command=self.perform_calculation)
+        self.calc_btn.pack(pady=20, padx=40, fill="x")
+
+        # --- Right Column: Results Visualization ---
+        self.result_frame = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color="#1e1e1e")
+        self.result_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
+
+        ctk.CTkLabel(self.result_frame, text="Financial Summary", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=15)
+
+        self.res_net_profit = self.create_result_row("Net Profit:", "RM 0.00", "#27ae60")
+        self.res_roi = self.create_result_row("ROI (%):", "0.00%", "#3498db")
+        self.res_fees = self.create_result_row("Total Fees:", "RM 0.00", "#e74c3c")
         
-        labels = ["Cost Price (RM):", "Selling Price (RM):", "Platform Fee Rate (%):", "Packaging Cost (RM):"]
-        for i, text in enumerate(labels):
-            ctk.CTkLabel(input_frame, text=text).grid(row=i, column=0, padx=20, pady=10, sticky="w")
-            ctk.CTkEntry(input_frame, width=250).grid(row=i, column=1, padx=20, pady=10)
+        # Disclaimer or Tip
+        tip_text = "Tip: High ROI (>20%) is recommended for long-term sustainability."
+        ctk.CTkLabel(self.result_frame, text=tip_text, font=("Helvetica", 11, "italic"), text_color="gray").pack(side="bottom", pady=20)
 
-        ctk.CTkButton(self, text="Calculate Net Profit", fg_color="#27ae60", hover_color="#219150").pack(pady=20)
+    def create_result_row(self, label_text, value_text, color):
+        row = ctk.CTkFrame(self.result_frame, fg_color="transparent")
+        row.pack(fill="x", padx=30, pady=15)
+        
+        lbl = ctk.CTkLabel(row, text=label_text, font=("Helvetica", 13))
+        lbl.pack(side="left")
+        
+        val_lbl = ctk.CTkLabel(row, text=value_text, font=("Helvetica", 18, "bold"), text_color=color)
+        val_lbl.pack(side="right")
+        return val_lbl
 
+    def perform_calculation(self):
+        try:
+            # 1. Get input values
+            cost = float(self.entries["Cost Price (RM)"].get())
+            selling = float(self.entries["Selling Price (RM)"].get())
+            fee_p = float(self.entries["Platform Fee (%)"].get()) / 100
+            shipping = float(self.entries["Shipping Fee (RM)"].get())
+            packaging = float(self.entries["Packaging Cost (RM)"].get())
+
+            # 2. Calculation logic
+            platform_fee_amount = selling * fee_p
+            total_cost = cost + platform_fee_amount + shipping + packaging
+            net_profit = selling - total_cost
+            roi = (net_profit / cost * 100) if cost > 0 else 0
+
+            # 3. Update UI
+            self.res_net_profit.configure(text=f"RM {net_profit:.2f}")
+            self.res_roi.configure(text=f"{roi:.2f}%")
+            self.res_fees.configure(text=f"RM {(platform_fee_amount + shipping + packaging):.2f}")
+            
+        except ValueError:
+            # Simple error feedback if user enters non-numbers
+            self.res_net_profit.configure(text="Invalid Input", text_color="#e74c3c")
 class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Data Analytics")
