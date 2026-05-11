@@ -49,10 +49,21 @@ class InventoryPage(ctk.CTkFrame):
         )
         self.btn_remove.pack(side = "left", padx = "10")
 
-        self.stock_list = tk.Listbox(self,height = 10, width = 40)
-        self.stock_list.pack(pady = 10)
+        # Stock display
+        display_frame = ctk.CTkFrame(self, corner_radius = 12, fg_color = "#1a1a1a")
+        display_frame.pack(pady = 20, padx = 20, fill = "both", expand = True)
 
+        ctk.CTkLabel(display_frame, text = "Current Stock", font = ("Arial", 16, "bold")).pack(pady = 10)
 
+        self.stock_list = tk.Listbox(
+            display_frame, height = 12, width = 50,
+            bg = "#ecf0f1", fg="#2c3e50",
+            font = ("Consolas, 12"),
+            highlightthickness = 0, bd = 0
+        )
+        self.stock_list.pack(pady = 10, padx = 10, fill = "both", expand = True)
+
+    # main code
     def add_item(self, item_name, quantity):
         if item_name in self.stock:
             self.stock[item_name] += quantity
