@@ -3,23 +3,33 @@ import tkinter as tk
 
 class InventoryPage(ctk.CTkFrame):
     def __init__(self,parent, controller = None,):
-        super().__init__(parent)
+        super().__init__(parent, fg_color = "#2b2b2b")
         self.controller = controller
         self.stock = {}
 
     # GUI stuffs
-        self.header = ctk.CTkLabel(self, text="Inventory Management", font=("Helvetica", 24, "bold"), text_color="#3498db")
+        self.header = ctk.CTkLabel(
+            self, text="Inventory Management", 
+            font=("Helvetica", 24, "bold"), 
+            text_color="#3498db"
+            )
         self.header.pack(pady=(20, 10), padx=20, anchor="w")
         
         # Decorative separator line
         line = ctk.CTkFrame(self, height=2, fg_color="#3d3d3d")
         line.pack(fill="x", padx=20, pady=(0, 20))
 
-        self.entry_item = ctk.CTkEntry(self, placeholder_text = "Item name")
-        self.entry_item.pack(pady = 5)
+        # Input Section
+        input_frame = ctk.CTkFrame(self, corner_radius = 12, fg_color = "#252525")
+        input_frame.pack(pady = 10, padx = 20, fill = "x")
 
-        self.entry_qty = ctk.CTkEntry(self, placeholder_text = "Quantity")
-        self.entry_qty.pack(pady = 5)
+        ctk.CTkLabel(input_frame, text = "Item Name:", font = ("Arial", 13)). grid(row = 0, column = 0, padx = 15, pady = 10, sticky = "w")
+        self.entry_item = ctk.CTkEntry(input_frame, placeholder_text= "Enter item name", width = 250)
+        self.entry_item.grid(row = 0, column = 1, padx = 15, pady = 10)
+
+        ctk.CTkLabel(input_frame, text = "Quantity", font = ("Arial", 13)). grid(row = 1, column = 0, padx = 15, pady = 10, sticky = "w")
+        self.entry_item = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
+        self.entry_item.grid(row = 1, column = 1, padx = 15, pady = 10)
 
         self.btn_add = ctk.CTkButton(self, text = "Add Item", command = self.gui_add_item)
         self.btn_add.pack(pady = 5)
