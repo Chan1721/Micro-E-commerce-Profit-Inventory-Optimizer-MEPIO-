@@ -31,11 +31,23 @@ class InventoryPage(ctk.CTkFrame):
         self.entry_item = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
         self.entry_item.grid(row = 1, column = 1, padx = 15, pady = 10)
 
-        self.btn_add = ctk.CTkButton(self, text = "Add Item", command = self.gui_add_item)
-        self.btn_add.pack(pady = 5)
+        # Button section
+        btn_frame = ctk.CTkFrame(self, fg_color = "transparent")
+        btn_frame.pack(pady = 10)
 
-        self.btn_remove = ctk.CTkButton(self, text = "Remove Item", command = self.gui_remove_item)
-        self.btn_remove.pack(pady = 5)
+        self.btn_add = ctk.CTkButton(
+            btn_frame, text = "➕ Add Item",
+            command = self.gui_add_item,
+            fg_color = "#27ae60", hover_color = "#2ecc71", width = 150
+        )
+        self.btn_add.pack(side = "left", padx = 10)
+
+        self.btn_remove = ctk.CTkButton(
+            btn_frame, text = "➖ Remove Item",
+            command = self.gui_remove_item,
+            fg_color = "#c0392b", hover_color = "e74c3c", width = 150
+        )
+        self.btn_remove.pack(side = "left", padx = "10")
 
         self.stock_list = tk.Listbox(self,height = 10, width = 40)
         self.stock_list.pack(pady = 10)
