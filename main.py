@@ -18,7 +18,7 @@ class MEPIOApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # --- Sidebar Configuration ---[cite: 1]
-        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color="#FFFFFF")
+        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=("#FFFFFF","#1D1E1F"))
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         
         # Brand section at top of sidebar
@@ -59,7 +59,7 @@ class MEPIOApp(ctk.CTk):
         # Generate sidebar buttons dynamically to avoid variable conflicts[cite: 1]
         for text, page_key in nav_items:
             btn = ctk.CTkButton(self.sidebar_frame, text=f"  {text}", 
-                                fg_color="transparent", text_color="#475569", hover_color="#e2e8f0",
+                                fg_color="transparent", text_color=("#475569","#F8FAFC"), hover_color="#e2e8f0",
                                 font=("Helvetica", 14, "bold"), anchor="w",
                                 command=lambda k=page_key: self.show_page(k))
             btn.pack(pady=5, padx=10, fill="x")
