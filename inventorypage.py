@@ -28,8 +28,8 @@ class InventoryPage(ctk.CTkFrame):
         self.entry_item.grid(row = 0, column = 1, padx = 15, pady = 10)
 
         ctk.CTkLabel(input_frame, text = "Quantity", font = ("Arial", 13)). grid(row = 1, column = 0, padx = 15, pady = 10, sticky = "w")
-        self.entry_item = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
-        self.entry_item.grid(row = 1, column = 1, padx = 15, pady = 10)
+        self.entry_qty = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
+        self.entry_qty.grid(row = 1, column = 1, padx = 15, pady = 10)
 
         # Button section
         btn_frame = ctk.CTkFrame(self, fg_color = "transparent")
@@ -45,7 +45,7 @@ class InventoryPage(ctk.CTkFrame):
         self.btn_remove = ctk.CTkButton(
             btn_frame, text = "➖ Remove Item",
             command = self.gui_remove_item,
-            fg_color = "#c0392b", hover_color = "e74c3c", width = 150
+            fg_color = "#c0392b", hover_color = "#e74c3c", width = 150
         )
         self.btn_remove.pack(side = "left", padx = "10")
 
@@ -58,7 +58,7 @@ class InventoryPage(ctk.CTkFrame):
         self.stock_list = tk.Listbox(
             display_frame, height = 12, width = 50,
             bg = "#ecf0f1", fg="#2c3e50",
-            font = ("Consolas, 12"),
+            font = ("Consolas", 12),
             highlightthickness = 0, bd = 0
         )
         self.stock_list.pack(pady = 10, padx = 10, fill = "both", expand = True)
