@@ -2,30 +2,68 @@ import customtkinter as ctk
 import tkinter as tk 
 
 class InventoryPage(ctk.CTkFrame):
-    def __init__(self, parent = None):
-        super().__init__(parent)
+    def __init__(self,parent, controller = None,):
+        super().__init__(parent, fg_color = "#2b2b2b")
+        self.controller = controller
         self.stock = {}
 
     # GUI stuffs
-        self.label = label = ctk.CTkLabel(self, text = "Inventory Management", font = ("Arial", 20))
-        self.label.pack(pady=10)
+        self.header = ctk.CTkLabel(
+            self, text="Inventory Management", 
+            font=("Helvetica", 24, "bold"), 
+            text_color="#3498db"
+            )
+        self.header.pack(pady=(20, 10), padx=20, anchor="w")
+        
+        # Decorative separator line
+        line = ctk.CTkFrame(self, height=2, fg_color="#3d3d3d")
+        line.pack(fill="x", padx=20, pady=(0, 20))
 
-        self.entry_item = ctk.CTkEntry(self, placeholder_text = "Item name")
-        self.entry_item.pack(pady = 5)
+        # Input Section
+        input_frame = ctk.CTkFrame(self, corner_radius = 12, fg_color = "#252525")
+        input_frame.pack(pady = 10, padx = 20, fill = "x")
 
-        self.entry_qty = ctk.CTkEntry(self, placeholder_text = "Quantity")
-        self.entry_qty.pack(pady = 5)
+        ctk.CTkLabel(input_frame, text = "Item Name:", font = ("Arial", 13)). grid(row = 0, column = 0, padx = 15, pady = 10, sticky = "w")
+        self.entry_item = ctk.CTkEntry(input_frame, placeholder_text= "Enter item name", width = 250)
+        self.entry_item.grid(row = 0, column = 1, padx = 15, pady = 10)
 
-        self.btn_add = ctk.CTkButton(self, text = "Add Item", command = self.gui_add_item)
-        self.btn_add.pack(pady = 5)
+        ctk.CTkLabel(input_frame, text = "Quantity", font = ("Arial", 13)). grid(row = 1, column = 0, padx = 15, pady = 10, sticky = "w")
+        self.entry_qty = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
+        self.entry_qty.grid(row = 1, column = 1, padx = 15, pady = 10)
 
-        self.btn_remove = ctk.CTkButton(self, text = "Remove Item", command = self.gui_remove_item)
-        self.btn_remove.pack(pady = 5)
+        # Button section
+        btn_frame = ctk.CTkFrame(self, fg_color = "transparent")
+        btn_frame.pack(pady = 10)
 
-        self.stock_list = tk.Listbox(self,height = 10, width = 40)
-        self.stock_list.pack(pady = 10)
+        self.btn_add = ctk.CTkButton(
+            btn_frame, text = "➕ Add Item",
+            command = self.gui_add_item,
+            fg_color = "#27ae60", hover_color = "#2ecc71", width = 150
+        )
+        self.btn_add.pack(side = "left", padx = 10)
 
+        self.btn_remove = ctk.CTkButton(
+            btn_frame, text = "➖ Remove Item",
+            command = self.gui_remove_item,
+            fg_color = "#c0392b", hover_color = "#e74c3c", width = 150
+        )
+        self.btn_remove.pack(side = "left", padx = "10")
 
+        # Stock display
+        display_frame = ctk.CTkFrame(self, corner_radius = 12, fg_color = "#1a1a1a")
+        display_frame.pack(pady = 20, padx = 20, fill = "both", expand = True)
+
+        ctk.CTkLabel(display_frame, text = "Current Stock", font = ("Arial", 16, "bold")).pack(pady = 10)
+
+        self.stock_list = tk.Listbox(
+            display_frame, height = 12, width = 50,
+            bg = "#ecf0f1", fg="#2c3e50",
+            font = ("Consolas", 12),
+            highlightthickness = 0, bd = 0
+        )
+        self.stock_list.pack(pady = 10, padx = 10, fill = "both", expand = True)
+
+    # main code
     def add_item(self, item_name, quantity):
         if item_name in self.stock:
             self.stock[item_name] += quantity
