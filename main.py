@@ -18,7 +18,7 @@ class MEPIOApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # --- Sidebar Configuration ---[cite: 1]
-        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=("#FFFFFF","#1D1E1F"))
+        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=("#FFFFFF", "#1D1E1F"))
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         
         # Brand section at top of sidebar
@@ -120,13 +120,13 @@ class DashboardPage(BasePage):
         ]
         
         for name, value in metrics:
-            card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color="#FFFFFF")
+            card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
             card.pack(side="left", padx=10, fill="both", expand=True)
             ctk.CTkLabel(card, text=name, font=("SF Pro Display", 12), text_color="gray").pack(pady=(15, 0))
             ctk.CTkLabel(card, text=value, font=("SF Pro Display", 18, "bold")).pack(pady=(5, 15))
 
         # Platform Fee Section (Result of Market Research)
-        self.fee_info = ctk.CTkFrame(self, corner_radius=12, fg_color="#FFFFFF")
+        self.fee_info = ctk.CTkFrame(self, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         self.fee_info.pack(pady=30, padx=30, fill="both", expand=True)
         ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("SF Pro Display", 16, "bold")).pack(pady=15)
         
@@ -161,12 +161,12 @@ class CalculatorPage(BasePage):
         super().__init__(parent, controller, "Profit Calculator")
         
         # Calculation input area
-        input_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="#FFFFFF")
+        input_frame = ctk.CTkFrame(self, corner_radius=10, fg_color=("#FFFFFF", "#2B2B2B"))
         input_frame.pack(pady=10, padx=20, fill="x")
         
         labels = ["Cost Price (RM):", "Selling Price (RM):", "Platform Fee Rate (%):", "Packaging Cost (RM):"]
         for i, text in enumerate(labels):
-            ctk.CTkLabel(input_frame, text=text, text_color="#333333", font=("Helvetica", 14, "bold")).grid(row=i, column=0, padx=20, pady=10, sticky="w")
+            ctk.CTkLabel(input_frame, text=text, text_color=("#333333", "#FFFFFF"), font=("Helvetica", 14, "bold")).grid(row=i, column=0, padx=20, pady=10, sticky="w")
             ctk.CTkEntry(input_frame, width=250, border_color="#E0E0E0", fg_color="#F8F9FA", text_color="#333333").grid(row=i, column=1, padx=20, pady=10)
 
         ctk.CTkButton(self, text="Calculate Net Profit", fg_color="#27ae60", hover_color="#219150").pack(pady=20)
@@ -177,7 +177,7 @@ class AnalyticsPage(BasePage):
         ctk.CTkLabel(self, text="Profit Trends & Performance Analysis", font=("SF Pro Display", 14), text_color="#333333").pack(pady=10)
         
         # Visual placeholder for charts
-        chart_box = ctk.CTkFrame(self, height=300, fg_color="#FFFFFF")
+        chart_box = ctk.CTkFrame(self, height=300, fg_color=("#FFFFFF", "#2B2B2B"))
         chart_box.pack(fill="x", padx=30, pady=20)
         ctk.CTkLabel(chart_box, text="[ Chart Visualization Module Loading... ]", font=("Helvetica", 14, "italic"), text_color="#888888").place(relx=0.5, rely=0.5, anchor="center")
 
@@ -190,7 +190,7 @@ class SettingsPage(BasePage):
         self.dark_mode_switch.pack(pady=20, padx=30, anchor="w")
         
         ctk.CTkButton(self, text="Sync Database", width=150).pack(pady=10, padx=30, anchor="w")
-        ctk.CTkButton(self, text="Export Settings", width=150, fg_color="transparent", border_width=1).pack(pady=10, padx=30, anchor="w")
+        ctk.CTkButton(self, text="Export Settings", width=150, border_width=1).pack(pady=10, padx=30, anchor="w")
 
     def toggle_dark_mode(self):
         if self.dark_mode_switch.get() == 1:
