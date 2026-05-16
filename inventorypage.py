@@ -56,7 +56,7 @@ class InventoryPage(ctk.CTkFrame):
 
         ctk.CTkLabel(display_frame, text = "Current Stock", font = ("Arial", 16, "bold")).pack(pady = 10)
 
-        self.lsitbox_colors = {
+        self.listbox_colors = {
             "light": {"bg": "#ecf0f1", "fg": "#2c3e50"},
             "dark": {"bg": "#2c3e50", "fg": "#ecf0f1"}
         }
