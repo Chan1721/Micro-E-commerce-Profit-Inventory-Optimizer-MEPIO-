@@ -7,6 +7,7 @@ class InventoryPage(ctk.CTkFrame):
         super().__init__(parent, fg_color =("white", "#2b2b2b"))
         self.controller = controller
         self.stock = {}
+        self.low_stock_threshold = 5
 
     # GUI stuffs
         self.header = ctk.CTkLabel(
@@ -69,6 +70,9 @@ class InventoryPage(ctk.CTkFrame):
         )
         self.stock_list.pack(pady = 10, padx = 10, fill = "both", expand = True)
 
+        self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
+        self.alert_label.pack(pady = 5)
+
     # main code
     def add_item(self, item_name, quantity):
         if item_name in self.stock:
@@ -111,8 +115,18 @@ class InventoryPage(ctk.CTkFrame):
         if hasattr(self, "stock_list"):
             self.update_listbox_theme()
             self.stock_list.delete(0, tk.END)
+            low_items = []
             for item, qty in self.stock.items():
                 self.stock_list.insert(tk.END, f"· {item:<20} | {qty}")
+                if qty <= self.low_stock_threshold:
+                    low_items.append(item)
+
+            if low_items:
+                self.alert_label.configure(
+                    text = f"⚠️ Low stock alert: {', '.join(low_items)}"
+                )
+            else:
+                self.alert_label.configure(text = "")
 
 if __name__ == "__main__":
     app = ctk.CTk()
