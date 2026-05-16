@@ -3,8 +3,8 @@ import tkinter as tk
 ctk.set_appearance_mode("light")
 
 class InventoryPage(ctk.CTkFrame):
-    def __init__(self,parent, controller = None,):
-        super().__init__(parent, fg_color = "#2b2b2b")
+    def __init__(self, parent, controller = None,):
+        super().__init__(parent, fg_color =("white", "#2b2b2b"))
         self.controller = controller
         self.stock = {}
 
@@ -12,16 +12,16 @@ class InventoryPage(ctk.CTkFrame):
         self.header = ctk.CTkLabel(
             self, text="Inventory Management", 
             font=("Helvetica", 24, "bold"), 
-            text_color="#3498db"
-            )
+            text_color=("#3498db", "#3498db")
+        )
         self.header.pack(pady=(20, 10), padx=20, anchor="w")
         
         # Decorative separator line
-        line = ctk.CTkFrame(self, height=2, fg_color="#3d3d3d")
+        line = ctk.CTkFrame(self, height=2, fg_color=("#E0E0E0", "#3d3d3d"))
         line.pack(fill="x", padx=20, pady=(0, 20))
 
         # Input Section
-        input_frame = ctk.CTkFrame(self, corner_radius = 12, fg_color = "#252525")
+        input_frame = ctk.CTkFrame(self, corner_radius = 12, fg_color =("#FFFFFF", "#252525"))
         input_frame.pack(pady = 10, padx = 20, fill = "x")
 
         ctk.CTkLabel(input_frame, text = "Item Name:", font = ("Arial", 13)). grid(row = 0, column = 0, padx = 15, pady = 10, sticky = "w")
@@ -55,6 +55,11 @@ class InventoryPage(ctk.CTkFrame):
         display_frame.pack(pady = 20, padx = 20, fill = "both", expand = True)
 
         ctk.CTkLabel(display_frame, text = "Current Stock", font = ("Arial", 16, "bold")).pack(pady = 10)
+
+        self.lsitbox_colors = {
+            "light": {"bg": "#ecf0f1", "fg": "#2c3e50"},
+            "dark": {"bg": "#2c3e50", "fg": "#ecf0f1"}
+        }
 
         self.stock_list = tk.Listbox(
             display_frame, height = 12, width = 50,
@@ -97,8 +102,14 @@ class InventoryPage(ctk.CTkFrame):
         except ValueError:
             print("Quantity must be a number")
 
+    def update_listbox_theme(self):
+        mode = ctk.get_appearance_mode().lower()
+        colors = self.listbox_colors[mode]
+        self.stock_list.config(bg = colors["bg"], fg = colors["fg"])
+
     def refresh_stock(self):
         if hasattr(self, "stock_list"):
+            self.update_listbox_theme()
             self.stock_list.delete(0, tk.END)
             for item, qty in self.stock.items():
                 self.stock_list.insert(tk.END, f"· {item:<20} | {qty}")
