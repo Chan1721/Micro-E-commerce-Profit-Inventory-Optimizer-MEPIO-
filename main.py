@@ -30,15 +30,15 @@ class MEPIOApp(ctk.CTk):
                          corner_radius=8, fg_color="#4F6EF7")
         logo_box.pack(side="left")
         logo_box.pack_propagate(False)  # keeps the box at 36x36
-        ctk.CTkLabel(logo_box, text="M", font=("SF Pro Display", 18, "bold"),
+        ctk.CTkLabel(logo_box, text="M", font=("Helvetica", 18, "bold"),
              text_color="white").place(relx=0.5, rely=0.5, anchor="center")
 
         # Text next to the logo
         text_col = ctk.CTkFrame(brand_frame, fg_color="transparent")
         text_col.pack(side="left", padx=(10, 0))
-        ctk.CTkLabel(text_col, text="MEPIO", font=("SF Pro Display", 17, "bold"),
+        ctk.CTkLabel(text_col, text="MEPIO", font=("Helvetica", 17, "bold"),
              text_color="#4F6EF7").pack(anchor="w")
-        ctk.CTkLabel(text_col, text="Profit & Inventory", font=("SF Pro Display", 10),
+        ctk.CTkLabel(text_col, text="Profit & Inventory", font=("Helvetica", 10),
              text_color="#94A3B8").pack(anchor="w")
 
         # Thin grey line below the brand
@@ -47,13 +47,13 @@ class MEPIOApp(ctk.CTk):
 
         # Navigation items mapping[cite: 1]
         nav_items = [
-            ("🏠  Dashboard", "dash"),
-            ("📦  Inventory", "inv"),
-            ("🚚  Logistics", "logistics"),
-            ("🧮  Calculator", "calculator"),
-            ("📊  Analytics", "analytics"),
-            ("⚙️  Settings", "settings"),
-            ("❓  Help & Support", "help")
+            (" Dashboard", "dash"),
+            (" Inventory", "inv"),
+            (" Logistics", "logistics"),
+            (" Calculator", "calculator"),
+            (" Analytics", "analytics"),
+            (" Settings", "settings"),
+            (" Help & Support", "help")
         ]
 
         # Generate sidebar buttons dynamically to avoid variable conflicts[cite: 1]
@@ -118,38 +118,88 @@ class DashboardPage(BasePage):
         for name, value, trend, direction in metrics:
             card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
             card.pack(side="left", padx=10, fill="both", expand=True)
-            ctk.CTkLabel(card, text=name, font=("SF Pro Display", 12), text_color="gray").pack(pady=(15, 0))
-            ctk.CTkLabel(card, text=value, font=("SF Pro Display", 18, "bold")).pack(pady=(5, 15))
+            ctk.CTkLabel(card, text=name, font=("Helvetica", 12), text_color="gray").pack(pady=(15, 0))
+            ctk.CTkLabel(card, text=value, font=("Helvetica", 18, "bold")).pack(pady=(5, 15))
 
             trend_color = "#2ecc71" if direction == "up" else "#e74c3c"
-            ctk.CTkLabel(card, text=trend, font=("SF Pro Display", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
+            ctk.CTkLabel(card, text=trend, font=("Helvetica", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
 
             # Bottom layout wrapper (Left and Right)
         self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
         self.bottom_wrapper.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # --- Left Side: Platform Fee Settings ---
-        self.fee_info = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
-        self.fee_info.pack(side="left", fill="both", expand=True, padx=(0, 15))
+        #platform benchmarking chart on the left
+        self.chart_frame = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.chart_frame.pack(side="left", fill="both", expand=True) 
         
-        ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("SF Pro Display", 16, "bold")).pack(pady=(20, 15), anchor="w", padx=20)
+        ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Helvetica", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
+        ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Helvetica", 12), text_color="gray").pack(anchor="w", padx=20)
+
+        plt.rcParams['font.family'] = 'sans-serif'
+        plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial']
+
+        current_mode = ctk.get_appearance_mode()
+        if current_mode == "Dark":
+            text_clr = "#CCCCCC"  
+            grid_clr = "#444444"  
+            
+        else:
+            text_clr = "#555555"  
+            grid_clr = "#E0E0E0"  
+
+        fig, ax = plt.subplots(figsize=(4,2), dpi=100)
+        fig.patch.set_facecolor("none") 
+        ax.set_facecolor("none")
+
+        platforms = ['Shopee MY', 'TikTok Shop', 'Lazada'] 
+        x = [0, 1, 2] 
         
-        fee_text = (
-            "• Shopee MY: 4.0% Commission + 2.12% Transaction Fee\n\n"
-            "• TikTok Shop: 2.0% Marketplace Fee + Service Fee\n\n"
-            "• Lazada: Standard Category-based Commission"
-        )
-        ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("SF Pro Display", 14), text_color="#bbbbbb").pack(pady=10, padx=20, anchor="w")
+        # 👉 修改点 2：柱子的粗细
+        width = 0.15 
+
+
+        revenue = [5800, 4100, 2600]
+        net_profit = [1800, 1500, 900]
+        platform_fees = [300, 200, 100]
+
+        color_rev = '#637AFA'   
+        color_prof = '#5DC66A'  
+        color_fee = '#EAA844'   
+
+        ax.bar([i - width for i in x], revenue, width=width, label='Revenue', color=color_rev)
+        ax.bar(x, net_profit, width=width, label='Net profit', color=color_prof)
+        ax.bar([i + width for i in x], platform_fees, width=width, label='Platform fees', color=color_fee)
+
+        # 👉 修改点 3：X轴和Y轴的字体大小 (fontsize 和 labelsize)
+        ax.set_xticks(x)
+        ax.set_xticklabels(platforms, color=text_clr, fontsize=4, fontweight ='bold')
+        ax.tick_params(axis='y', colors=text_clr, labelsize=5)
+
+        ax.yaxis.grid(True, color=grid_clr, linestyle='-', linewidth=0.5, alpha=0.5)
+        ax.set_axisbelow(True) 
+        for spine in ax.spines.values():
+            spine.set_visible(False) 
+        ax.spines['bottom'].set_visible(True) 
+        ax.spines['bottom'].set_color(grid_clr)
+
+        # 👉 修改点 4：图例的位置 (bbox_to_anchor) 和 字体大小 (fontsize)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'size': 8, 'weight': 'bold'})
+
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
         # --- Right Side: Vertical Quick Actions ---
         self.action_card = ctk.CTkFrame(self.bottom_wrapper, width=220, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         self.action_card.pack(side="right", fill="y")
         self.action_card.pack_propagate(False) 
         
-        ctk.CTkLabel(self.action_card, text="Quick Actions", font=("SF Pro Display", 16, "bold")).pack(pady=(20, 15))
+        ctk.CTkLabel(self.action_card, text="Quick Actions", font=("Helvetica", 16, "bold")).pack(pady=(20, 15))
         
         # Action Buttons
-        ctk.CTkButton(self.action_card, text="➕ Add New Product", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+        ctk.CTkButton(self.action_card, text="➕ Calculate Profit", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
                       border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                       command=lambda: controller.show_page("calculator")).pack(pady=8, padx=20, fill="x")
                       
@@ -160,6 +210,14 @@ class DashboardPage(BasePage):
         ctk.CTkButton(self.action_card, text="📦 Restock Low Items", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
                       border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                       command=lambda: controller.show_page("logistics")).pack(pady=8, padx=20, fill="x")
+        
+        ctk.CTkButton(self.action_card, text="⚙️ Update Fee Rates", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("settings")).pack(pady=8, padx=20, fill="x")
+
+        ctk.CTkButton(self.action_card, text="📊 View Profit Trends", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("analytics")).pack(pady=8, padx=20, fill="x")
 
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):
@@ -191,7 +249,7 @@ class CalculatorPage(BasePage):
 class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Data Analytics")
-        ctk.CTkLabel(self, text="Profit Trends & Performance Analysis", font=("SF Pro Display", 14), text_color="#333333").pack(pady=10)
+        ctk.CTkLabel(self, text="Profit Trends & Performance Analysis", font=("Helvetica", 14), text_color="#333333").pack(pady=10)
         
         # Visual placeholder for charts
         chart_box = ctk.CTkFrame(self, height=300, fg_color=("#FFFFFF", "#2B2B2B"))
@@ -220,7 +278,7 @@ class HelpPage(BasePage):
         super().__init__(parent, controller, "Help & Support Center")
         
         # User manual textbox
-        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("SF Pro Display", 12))
+        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Helvetica", 12))
         help_text.pack(pady=10, padx=20, fill="both", expand=True)
         help_text.insert("0.0", "MEPIO SYSTEM DOCUMENTATION\n\n"
                                "1. DASHBOARD: View real-time profit and revenue metrics.\n"
