@@ -1,5 +1,7 @@
 import customtkinter as ctk #shortcut for customtkinter as ctk
 import tkinter as tk 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 ctk.set_appearance_mode("light")
 
 #importing the login page
@@ -113,29 +115,57 @@ class DashboardPage(BasePage):
         self.stats_frame.pack(fill="x", padx=20)
         
         metrics = [
-            ("Total Revenue", "RM 12,450.00"), 
-            ("Net Profit", "RM 4,200.50"), 
-            ("Platform Fees", "RM 850.20"), 
-            ("Low Stock", "5 Items")
+            ("Total Revenue", "RM 12,450.00", "+5.2% vs last month", "up"), 
+            ("Net Profit", "RM 4,200.50", "-1.5% vs last month", "down"), 
+            ("Platform Fees", "RM 850.20", "+12.0% vs last month", "up"), 
+            ("Low Stock", "5 Items", "Requires Attention", "down")
         ]
         
-        for name, value in metrics:
+        for name, value, trend, direction in metrics:
             card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
             card.pack(side="left", padx=10, fill="both", expand=True)
             ctk.CTkLabel(card, text=name, font=("SF Pro Display", 12), text_color="gray").pack(pady=(15, 0))
             ctk.CTkLabel(card, text=value, font=("SF Pro Display", 18, "bold")).pack(pady=(5, 15))
 
-        # Platform Fee Section (Result of Market Research)
-        self.fee_info = ctk.CTkFrame(self, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
-        self.fee_info.pack(pady=30, padx=30, fill="both", expand=True)
-        ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("SF Pro Display", 16, "bold")).pack(pady=15)
+            trend_color = "#2ecc71" if direction == "up" else "#e74c3c"
+            ctk.CTkLabel(card, text=trend, font=("SF Pro Display", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
+
+            # Bottom layout wrapper (Left and Right)
+        self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        self.bottom_wrapper.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # --- Left Side: Platform Fee Settings ---
+        self.fee_info = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.fee_info.pack(side="left", fill="both", expand=True, padx=(0, 15))
+        
+        ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("SF Pro Display", 16, "bold")).pack(pady=(20, 15), anchor="w", padx=20)
         
         fee_text = (
-            "• Shopee MY: 4.0% Commission + 2.12% Transaction Fee\n"
-            "• TikTok Shop: 2.0% Marketplace Fee + Service Fee\n"
+            "• Shopee MY: 4.0% Commission + 2.12% Transaction Fee\n\n"
+            "• TikTok Shop: 2.0% Marketplace Fee + Service Fee\n\n"
             "• Lazada: Standard Category-based Commission"
         )
-        ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("SF Pro Display", 13), text_color="#bbbbbb").pack(pady=10)
+        ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("SF Pro Display", 14), text_color="#bbbbbb").pack(pady=10, padx=20, anchor="w")
+
+        # --- Right Side: Vertical Quick Actions ---
+        self.action_card = ctk.CTkFrame(self.bottom_wrapper, width=220, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.action_card.pack(side="right", fill="y")
+        self.action_card.pack_propagate(False) 
+        
+        ctk.CTkLabel(self.action_card, text="Quick Actions", font=("SF Pro Display", 16, "bold")).pack(pady=(20, 15))
+        
+        # Action Buttons
+        ctk.CTkButton(self.action_card, text="➕ Add New Product", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("calculator")).pack(pady=8, padx=20, fill="x")
+                      
+        ctk.CTkButton(self.action_card, text="🔄 Sync Inventory", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("inv")).pack(pady=8, padx=20, fill="x")
+                      
+        ctk.CTkButton(self.action_card, text="📦 Restock Low Items", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("logistics")).pack(pady=8, padx=20, fill="x")
 
 class InventoryPage(BasePage):
     def __init__(self, parent, controller):
