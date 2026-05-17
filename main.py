@@ -128,15 +128,13 @@ class DashboardPage(BasePage):
         self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
         self.bottom_wrapper.pack(fill="both", expand=True, padx=20, pady=20)
 
-        #platform benchmarking chart on the left
+    #platform benchmarking chart on the left
         self.chart_frame = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         self.chart_frame.pack(side="left", fill="both", expand=True) 
         
         ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Helvetica", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
         ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Helvetica", 12), text_color="gray").pack(anchor="w", padx=20)
 
-        plt.rcParams['font.family'] = 'sans-serif'
-        plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial']
 
         current_mode = ctk.get_appearance_mode()
         if current_mode == "Dark":
@@ -154,7 +152,7 @@ class DashboardPage(BasePage):
         platforms = ['Shopee MY', 'TikTok Shop', 'Lazada'] 
         x = [0, 1, 2] 
         
-        # 👉 修改点 2：柱子的粗细
+    
         width = 0.15 
 
 
@@ -170,10 +168,15 @@ class DashboardPage(BasePage):
         ax.bar(x, net_profit, width=width, label='Net profit', color=color_prof)
         ax.bar([i + width for i in x], platform_fees, width=width, label='Platform fees', color=color_fee)
 
-        # 👉 修改点 3：X轴和Y轴的字体大小 (fontsize 和 labelsize)
+        
         ax.set_xticks(x)
-        ax.set_xticklabels(platforms, color=text_clr, fontsize=4, fontweight ='bold')
+        ax.set_xticklabels(platforms, color=text_clr, fontsize=4, fontweight ='bold',fontname='Helvetica')
         ax.tick_params(axis='y', colors=text_clr, labelsize=5)
+
+        for label in ax.get_yticklabels(): #params cant change fontname in tick_params, have to loop through labels
+            label.set_fontname("Helvetica")
+            label.set_fontsize(8)
+            label.set_fontweight("bold")
 
         ax.yaxis.grid(True, color=grid_clr, linestyle='-', linewidth=0.5, alpha=0.5)
         ax.set_axisbelow(True) 
@@ -182,8 +185,8 @@ class DashboardPage(BasePage):
         ax.spines['bottom'].set_visible(True) 
         ax.spines['bottom'].set_color(grid_clr)
 
-        # 👉 修改点 4：图例的位置 (bbox_to_anchor) 和 字体大小 (fontsize)
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'size': 8, 'weight': 'bold'})
+    
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'family': 'Helvetica', 'size': 8, 'weight': 'bold'})
 
         fig.tight_layout()
 
@@ -260,12 +263,57 @@ class SettingsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "System Settings")  
 
-        self.dark_mode_switch = ctk.CTkSwitch(self, text="Enable Dark Mode Visualization" , command=self.toggle_dark_mode)
-        self.dark_mode_switch.select()
-        self.dark_mode_switch.pack(pady=20, padx=30, anchor="w")
+        # --- Main Layout: Two-Column Container ---
+        self.content_wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_wrapper.pack(fill="both", expand=True, padx=40, pady=10)
+
         
-        ctk.CTkButton(self, text="Sync Database", width=150).pack(pady=10, padx=30, anchor="w")
-        ctk.CTkButton(self, text="Export Settings", width=150, border_width=1).pack(pady=10, padx=30, anchor="w")
+        # Left Column: General System Preferences
+        self.sys_card = ctk.CTkFrame(self.content_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.sys_card.pack(side="left", fill="both", expand=True, padx=(0, 15))
+
+        ctk.CTkLabel(self.sys_card, text="General Preferences", font=("Helvetica", 16, "bold")).pack(pady=(25, 20), padx=25, anchor="w")
+
+        self.dark_mode_switch = ctk.CTkSwitch(self.sys_card, text="Enable Dark Mode Visualization", command=self.toggle_dark_mode)
+        self.dark_mode_switch.pack(pady=15, padx=25, anchor="w")
+
+        self.sync_btn = ctk.CTkButton(self.sys_card, text="Sync Database", width=200, fg_color="#3498db")
+        self.sync_btn.pack(pady=(20, 10), padx=25, anchor="w")
+
+        self.export_btn = ctk.CTkButton(self.sys_card, text="Export Settings", width=200, fg_color="#3498db")
+        self.export_btn.pack(pady=10, padx=25, anchor="w")
+
+
+        # Right Column: Platform Fee Configurations
+        # dont know where to put first so,if want can just copy to other pages
+        self.fee_card = ctk.CTkFrame(self.content_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.fee_card.pack(side="right", fill="both", expand=True, padx=(15, 0))
+
+        ctk.CTkLabel(self.fee_card, text="Platform Fee Rates", font=("Helvetica", 16, "bold")).pack(pady=(25, 10), padx=25, anchor="w")
+        ctk.CTkLabel(self.fee_card, text="Update the current commission rates for accurate profit calculation.", font=("Helvetica", 12), text_color="gray").pack(padx=25, anchor="w", pady=(0, 20))
+
+        self.shopee_entry = ctk.CTkEntry(self.fee_card, placeholder_text="Shopee Fee (e.g. 5.5%)", width=250)
+        self.shopee_entry.pack(pady=10, padx=25, anchor="w")
+
+        self.tiktok_entry = ctk.CTkEntry(self.fee_card, placeholder_text="TikTok Shop Fee (e.g. 3.2%)", width=250)
+        self.tiktok_entry.pack(pady=10, padx=25, anchor="w")
+
+        self.lazada_entry = ctk.CTkEntry(self.fee_card, placeholder_text="Lazada Fee (e.g. 4.0%)", width=250)
+        self.lazada_entry.pack(pady=10, padx=25, anchor="w")
+
+        self.update_fee_btn = ctk.CTkButton(self.fee_card, text="Save Fee Updates", fg_color="#5DC66A", hover_color="#4CAF50", width=250, command=self.save_fees_mock)
+        self.update_fee_btn.pack(pady=(25, 10), padx=25, anchor="w")
+
+    # Backend Integration Placeholder 
+    def save_fees_mock(self):
+        shopee_fee = self.shopee_entry.get()
+        tiktok_fee = self.tiktok_entry.get()
+        lazada_fee = self.lazada_entry.get()
+        
+        print(f"[DEBUG] Fees Updated - Shopee: {shopee_fee} | TikTok: {tiktok_fee} | Lazada: {lazada_fee}")
+        
+        # TODO: Connect to database function once backend is ready
+        # e.g., db.update_platform_fees(shopee_fee, tiktok_fee, lazada_fee)
 
     def toggle_dark_mode(self):
         if self.dark_mode_switch.get() == 1:
