@@ -5,8 +5,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 ctk.set_appearance_mode("light")
 
 #importing the login page
-
-
 from inventorypage import InventoryPage
 
 class MEPIOApp(ctk.CTk):
@@ -89,10 +87,6 @@ class MEPIOApp(ctk.CTk):
         # Display selected page in the main container area[cite: 1]
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
-        #   Initialize Inventory page
-
-        ctk.CTkLabel(self.pages["inv"], text="Stock Management System", font=("SF Pro Display", 24)).pack()
-
 # --- UI Templates ---[cite: 1]
 
 class BasePage(ctk.CTkFrame):
@@ -167,13 +161,6 @@ class DashboardPage(BasePage):
                       border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                       command=lambda: controller.show_page("logistics")).pack(pady=8, padx=20, fill="x")
 
-class InventoryPage(BasePage):
-    def __init__(self, parent, controller):
-        super().__init__(parent, controller, "Stock Management System")
-        # Placeholder for teammate's work
-        ctk.CTkLabel(self, text="Inventory modules are currently being integrated by the Database Lead.", 
-                     text_color="gray", font=("SF Pro Display", 14, "italic")).pack(expand=True)
-
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "Shipping & Logistics")
@@ -224,9 +211,9 @@ class SettingsPage(BasePage):
 
     def toggle_dark_mode(self):
         if self.dark_mode_switch.get() == 1:
-            ctk.set_appearance_mode("dark")  
+            ctk.set_appearance_mode("dark")
         else:
-            ctk.set_appearance_mode("light")     
+            ctk.set_appearance_mode("light")
 
 class HelpPage(BasePage):
     def __init__(self, parent, controller):
