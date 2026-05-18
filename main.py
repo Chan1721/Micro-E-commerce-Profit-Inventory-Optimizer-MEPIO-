@@ -259,6 +259,69 @@ class AnalyticsPage(BasePage):
         chart_box.pack(fill="x", padx=30, pady=20)
         ctk.CTkLabel(chart_box, text="[ Chart Visualization Module Loading... ]", font=("Helvetica", 14, "italic"), text_color="#888888").place(relx=0.5, rely=0.5, anchor="center")
 
+        ctk.CTkLabel(self, text=" ROI Benchmarking", font=("Helvetica", 24, "bold"), text_color="#3498db").pack(pady=(20, 5), padx=40, anchor="w")
+        ctk.CTkLabel(self, text="Enter total cost and net profit to calculate the Return on Investment for each platform.", font=("Helvetica", 14), text_color="gray").pack(padx=40, anchor="w", pady=(0, 20))
+
+        #card to place
+        self.roi_card = ctk.CTkFrame(self, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.roi_card.pack(fill="both", expand=True, padx=40, pady=10)
+
+        ctk.CTkLabel(self.roi_card, text="Platform", font=("Helvetica", 14, "bold")).grid(row=0, column=0, padx=20, pady=15, sticky="w")
+        ctk.CTkLabel(self.roi_card, text="Total Cost (RM)", font=("Helvetica", 14, "bold")).grid(row=0, column=1, padx=10, pady=15)
+        ctk.CTkLabel(self.roi_card, text="Net Profit (RM)", font=("Helvetica", 14, "bold")).grid(row=0, column=2, padx=10, pady=15)
+        ctk.CTkLabel(self.roi_card, text="ROI Result", font=("Helvetica", 14, "bold"), text_color="#3498db").grid(row=0, column=3, padx=20, pady=15)
+
+        #Shopee
+        ctk.CTkLabel(self.roi_card, text="🟠 Shopee MY", font=("Helvetica", 14, "bold")).grid(row=1, column=0, padx=20, pady=10, sticky="w")
+        self.sp_cost = ctk.CTkEntry(self.roi_card, width=120, placeholder_text="e.g. 1000")
+        self.sp_cost.grid(row=1, column=1, padx=10, pady=10)
+        self.sp_profit = ctk.CTkEntry(self.roi_card, width=120, placeholder_text="e.g. 200")
+        self.sp_profit.grid(row=1, column=2, padx=10, pady=10)
+        self.sp_res = ctk.CTkLabel(self.roi_card, text="-- %", font=("Helvetica", 16, "bold"))
+        self.sp_res.grid(row=1, column=3, padx=20, pady=10)
+
+        #TikTok
+        ctk.CTkLabel(self.roi_card, text="⚫ TikTok Shop", font=("Helvetica", 14, "bold")).grid(row=2, column=0, padx=20, pady=10, sticky="w")
+        self.tk_cost = ctk.CTkEntry(self.roi_card, width=120, placeholder_text="e.g. 1000")
+        self.tk_cost.grid(row=2, column=1, padx=10, pady=10)
+        self.tk_profit = ctk.CTkEntry(self.roi_card, width=120, placeholder_text="e.g. 350")
+        self.tk_profit.grid(row=2, column=2, padx=10, pady=10)
+        self.tk_res = ctk.CTkLabel(self.roi_card, text="-- %", font=("Helvetica", 16, "bold"))
+        self.tk_res.grid(row=2, column=3, padx=20, pady=10)
+
+        #Lazada
+        ctk.CTkLabel(self.roi_card, text="🔵 Lazada", font=("Helvetica", 14, "bold")).grid(row=3, column=0, padx=20, pady=10, sticky="w")
+        self.lz_cost = ctk.CTkEntry(self.roi_card, width=120, placeholder_text="e.g. 1000")
+        self.lz_cost.grid(row=3, column=1, padx=10, pady=10)
+        self.lz_profit = ctk.CTkEntry(self.roi_card, width=120, placeholder_text="e.g. 150")
+        self.lz_profit.grid(row=3, column=2, padx=10, pady=10)
+        self.lz_res = ctk.CTkLabel(self.roi_card, text="-- %", font=("Helvetica", 16, "bold"))
+        self.lz_res.grid(row=3, column=3, padx=20, pady=10)
+
+        #calc btn
+        self.calc_btn = ctk.CTkButton(self.roi_card, text="Calculate All ROI", font=("Helvetica", 14, "bold"), fg_color="#27ae60", hover_color="#219150", command=self.calculate_all_roi)
+        self.calc_btn.grid(row=4, column=0, columnspan=4, pady=30)
+
+    def calculate_all_roi(self):
+        def get_roi(cost_entry, profit_entry, res_label):
+            try:
+                cost = float(cost_entry.get())
+                profit = float(profit_entry.get())
+                
+                if cost == 0:
+                    res_label.configure(text="Error", text_color="red")
+                    return
+                
+                roi = (profit / cost) * 100
+                
+                res_label.configure(text=f"{roi:.1f}%", text_color="#27ae60" if roi > 0 else "red")
+            except ValueError:
+                res_label.configure(text="-- %", text_color="gray")
+
+        get_roi(self.sp_cost, self.sp_profit, self.sp_res)
+        get_roi(self.tk_cost, self.tk_profit, self.tk_res)
+        get_roi(self.lz_cost, self.lz_profit, self.lz_res)
+
 class SettingsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "System Settings")  
