@@ -127,11 +127,16 @@ class InventoryPage(ctk.CTkFrame):
             messagebox.showerror("Error", "Quantity must be a number")
 
     def set_threshold(self):
+        item = self.entry_item.get().strip()
+        if not item:
+            messagebox.showerror("Error", "Enter an item name to set threshold")
+            return
         try:
             value = int(self.entry_threshold.get())
-            self.low_stock_threshold = value
+            self.thresholds[item] = value
             self.threshold_label.configure(text = f"Current Threshold: {value}")
             messagebox.showinfo("Threshold Updated", f"Low stock threshold set to {value}")
+            self.refresh_stock()
         except ValueError:
             messagebox.showerror("Invalid Input", "Threshold must be a number")
 
@@ -160,10 +165,11 @@ class InventoryPage(ctk.CTkFrame):
         else:
             self.alert_label.configure(text = "")
 
-# Run the system alone
+
 if __name__ == "__main__":
-    app = ctk.CTk()
-    app.geometry("500x400")
-    inv_page = InventoryPage(app)
-    inv_page.pack(fill = "both", expand = True)
+    app = MEPIOApp()
+    def on_theme_change(event = None):
+        if "inv" in app.pages:
+            app.pages["inv"].update_listbox_theme()
+    app.bind("<<AppearanceModeChanged>>", on_theme_change)
     app.mainloop()
