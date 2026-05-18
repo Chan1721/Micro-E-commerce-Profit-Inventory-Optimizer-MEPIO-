@@ -1,6 +1,8 @@
 import customtkinter as ctk
 import tkinter as tk 
 from tkinter import messagebox # import messagebox for stock
+import sqlite3
+
 ctk.set_appearance_mode("light")
 
 class InventoryPage(ctk.CTkFrame):
@@ -9,6 +11,10 @@ class InventoryPage(ctk.CTkFrame):
         self.controller = controller
         self.stock = {}
         self.thresholds = {}
+
+        # Connect to database
+        self.conn = sqlite3.connect("mepio_system.db")
+        self.cursor = self.conn.cursor()
 
     # GUI stuffs
         self.header = ctk.CTkLabel(
@@ -89,10 +95,32 @@ class InventoryPage(ctk.CTkFrame):
         self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
         self.alert_label.pack(pady = 5)
 
+        # Load stock after stock_list exists to prevent bug
+        self.load_stock_from_db()
+
     # main code
+    # --- Database integration methods ---
+    def load_stock_from_db(self):
+        self.cursor.execute("SELECT product_name, local_stock FROM inventory")
+        for item, qty in self.cursor.fetchall():
+            self.stock[item] = qty
+            self.thresholds[item] = 5
+        self.refresh_stock()
+
+
     def add_item(self, item_name, quantity, threshold = 5):
         self.stock[item_name] = self.stock.get(item_name, 0) + quantity
-        self.thresholds[item_name] = threshold
+        self.thresholds[item_name] = threshold  # default threshold
+        self.refresh_stock()
+
+        # Save to Database
+        self.cursor.execute(
+            """INSERT INTO inventory (sku, product_name, local_stock)
+            VALUES (?, ?, ?)
+            ON CONFLICT(sku) DO UPDATE SET local_stock = local_stock + excluded.local_stock""",
+            (item_name, item_name, quantity)
+        )
+        self.conn.commit()
         self.refresh_stock()
 
     def erase_item(self, item_name, quantity):
@@ -101,6 +129,14 @@ class InventoryPage(ctk.CTkFrame):
                 self.stock[item_name] -= quantity
                 if self.stock[item_name] == 0:
                     del self.stock[item_name]
+
+            # Update Database
+            self.cursor.execute(
+                """UPDATE inventory SET local_stock = local_stock - ?
+                WHERE product_name = ?""",
+                (quantity, item_name)
+            )
+            self.conn.commit()
         self.refresh_stock()
 
     def gui_add_item(self):
@@ -127,11 +163,16 @@ class InventoryPage(ctk.CTkFrame):
             messagebox.showerror("Error", "Quantity must be a number")
 
     def set_threshold(self):
+        item = self.entry_item.get().strip()
+        if not item:
+            messagebox.showerror("Error", "Enter an item name to set threshold")
+            return
         try:
             value = int(self.entry_threshold.get())
-            self.low_stock_threshold = value
+            self.thresholds[item] = value
             self.threshold_label.configure(text = f"Current Threshold: {value}")
             messagebox.showinfo("Threshold Updated", f"Low stock threshold set to {value}")
+            self.refresh_stock()
         except ValueError:
             messagebox.showerror("Invalid Input", "Threshold must be a number")
 
@@ -160,10 +201,11 @@ class InventoryPage(ctk.CTkFrame):
         else:
             self.alert_label.configure(text = "")
 
-# Run the system alone
+
 if __name__ == "__main__":
-    app = ctk.CTk()
-    app.geometry("500x400")
-    inv_page = InventoryPage(app)
-    inv_page.pack(fill = "both", expand = True)
+    app = MEPIOApp()
+    def on_theme_change(event = None):
+        if "inv" in app.pages:
+            app.pages["inv"].update_listbox_theme()
+    app.bind("<<AppearanceModeChanged>>", on_theme_change)
     app.mainloop()
