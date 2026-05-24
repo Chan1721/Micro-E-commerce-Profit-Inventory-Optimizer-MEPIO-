@@ -3,6 +3,9 @@ import tkinter as tk
 from registerpage import open_register_window
 import tkinter.messagebox as messagebox
 import sys
+import json
+import os
+import sqlite3
 
 CTk.set_appearance_mode("light")
 
@@ -80,15 +83,49 @@ forgot_password = CTk.CTkLabel(right, text="Forgot Password?", fg_color="#ffffff
 forgot_password.place(x=290, y=290)
 
 
-def handle_login(): #fake id and password to jump in to dashboard
+def save_remember_me(username):
+    if remember_me.get() == 1:
+        with open("remember_user.json", "w") as f:
+            json.dump({"username": username}, f)
+    else:
+        if os.path.exists("remember_user.json"):
+            os.remove("remember_user.json")
+
+def load_remember_me():
+    if os.path.exists("remember_user.json"):
+        with open("remember_user.json", "r") as f:
+            data = json.load(f)
+            username_entry.insert(0, data.get("username", ""))
+            remember_me.select()
+
+load_remember_me()
+
+def handle_login(): 
     username = username_entry.get()
     password = password_entry.get()
 
-    if username == "admin" and password == "123":
-        root.quit()
+    if username == "" or password == "":
+        messagebox.showwarning("Warning", "Please fill in both username and password!")
+        return
 
-    else: 
-        messagebox.showerror("Error", "Wrong password! Try admin / 123")    
+    try:
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM users WHERE username=? AND password_hash=?", (username, password))
+        user_record = cursor.fetchone()
+
+        conn.close()
+
+        if user_record:
+            save_remember_me(username)
+            root.after(200, root.quit)  # Close the login window after a short delay to allow the success message to show
+        else:
+            # 账号或密码对不上
+            messagebox.showerror("Error", "Wrong username or password!")
+            
+    except Exception as e:
+        messagebox.showerror("Database Error", f"Something went wrong: {e}")  
             
 
 

@@ -243,7 +243,7 @@ class CalculatorPage(BasePage):
         self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
 
         # --- Left Column: Inputs (Scrollable to prevent overcrowding) ---
-        self.input_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=15, fg_color="#252525", width=500)
+        self.input_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=15, fg_color=("#FFFFFF", "#252525"), width=500)
         self.input_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         # Section 1: Product & Platform Details
@@ -264,7 +264,7 @@ class CalculatorPage(BasePage):
         # Preset Package Size Selection
         size_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
         size_frame.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(size_frame, text="Package Size Preset:", width=150, anchor="w").pack(side="left")
+        ctk.CTkLabel(size_frame, text="Package Size Preset:", width=150, anchor="w", text_color=("#333333", "#E0E0E0")).pack(side="left")
         
         self.size_option = ctk.CTkOptionMenu(
             size_frame, 
@@ -289,7 +289,7 @@ class CalculatorPage(BasePage):
         self.calc_btn.pack(pady=25, padx=40, fill="x")
 
         # --- Right Column: Financial Results ---
-        self.result_frame = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color="#1e1e1e")
+        self.result_frame = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color=("#FFFFFF", "#1e1e1e"))
         self.result_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         ctk.CTkLabel(self.result_frame, text="Financial Summary", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=15)
@@ -310,7 +310,7 @@ class CalculatorPage(BasePage):
             row = ctk.CTkFrame(self.input_frame, fg_color="transparent")
             row.pack(fill="x", padx=20, pady=5)
             
-            lbl = ctk.CTkLabel(row, text=label_text, width=180, anchor="w")
+            lbl = ctk.CTkLabel(row, text=label_text, width=180, anchor="w", text_color=("#333333", "#E0E0E0"))
             lbl.pack(side="left")
             
             entry = ctk.CTkEntry(row, placeholder_text=default_val)
@@ -322,7 +322,7 @@ class CalculatorPage(BasePage):
         row = ctk.CTkFrame(self.result_frame, fg_color="transparent")
         row.pack(fill="x", padx=30, pady=12)
         
-        lbl = ctk.CTkLabel(row, text=label_text, font=("Helvetica", 13))
+        lbl = ctk.CTkLabel(row, text=label_text, font=("Helvetica", 13), text_color=("#1A1A1A", "white"))
         lbl.pack(side="left")
         
         val_lbl = ctk.CTkLabel(row, text=value_text, font=("Helvetica", 18, "bold"), text_color=color)
@@ -445,7 +445,7 @@ class AnalyticsPage(BasePage):
         # RIGHT COLUMN: VISUAL REORDER QUANTITY & COST COMPARISON CHART
         # =========================================================================
         
-        self.right_frame = ctk.CTkFrame(self.main_container, fg_color="#252525", corner_radius=12)
+        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=("#FFFFFF", "#252525"), corner_radius=12)
         self.right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         # Render the enhanced visual chart matching the supervisor's metrics

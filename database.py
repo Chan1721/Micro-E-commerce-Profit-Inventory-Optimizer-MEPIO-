@@ -23,7 +23,8 @@ def init_database():
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY AUTOINCREMENT,  -- Automatically increments unique ID for each user
         username TEXT NOT NULL UNIQUE,              -- Store account name (must be unique to prevent duplicates)
-        password_hash TEXT NOT NULL,                -- Encrypted password string for security compliance
+        password_hash TEXT NOT NULL, 
+        security_answer TEXT,               -- Encrypted password string for security compliance
         shopee_api_key TEXT,                        -- API integration key for Shopee Open Platform connection
         tiktok_api_key TEXT,                        -- API integration token for TikTok Shop Seller Center connection
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Automatically logs the timestamp of registration
