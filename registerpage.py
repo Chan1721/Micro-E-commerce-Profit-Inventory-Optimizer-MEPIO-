@@ -1,7 +1,7 @@
 import customtkinter as CTk
 import tkinter as tk
 import tkinter.messagebox as messagebox
-import sys
+import sqlite3
 
 def open_register_window(login_root):
     reg_window = CTk.CTkToplevel()
@@ -99,9 +99,36 @@ def open_register_window(login_root):
             if answer == "":
                 messagebox.showerror("Error", "Please provide an answer!")
                 return
-            messagebox.showinfo("Success", f"Account created for {username}!\nAnswer saved: {answer}")
-            sec_window.destroy()
-            on_close()
+            
+            try:
+                conn = sqlite3.connect('mepio_system.db')
+                cursor = conn.cursor()
+
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash) 
+                    VALUES (?, ?)
+                ''', (username, pwd))
+
+                # 3. 关门锁死：保存更改
+                conn.commit()
+                conn.close()
+
+                # 4. 成功后的前端反馈
+                messagebox.showinfo("Success", f"Account successfully created for {username}!\n(Tell backend to add security_answer column!)")
+                sec_window.destroy()
+                
+                # 销毁注册页，回到登录页
+                reg_window.destroy()
+                login_root.deiconify()
+
+            except sqlite3.IntegrityError:
+                # 防呆机制：因为他数据库设置了 username 是 UNIQUE 的
+                # 如果用户注册了重名的账号，系统不会崩溃，而是会温柔地弹窗
+                messagebox.showerror("Error", "Username already exists! Please choose another one.")
+                conn.close()
+            except Exception as e:
+                # 兜底：抓取任何其他数据库报错
+                messagebox.showerror("Database Error", f"Something went wrong: {e}")
 
         complete_btn = CTk.CTkButton(sec_window, text="Complete Registration", fg_color="#0a192f", hover_color="#132b4f", width=320, height=40, command=final_answer)
         complete_btn.place(x=40, y=190)    
@@ -115,7 +142,6 @@ def open_register_window(login_root):
 
     def on_close():
         reg_window.destroy()
-        login_root.deiconify()
-        sys.exit()      #completely exit the program when the register window is closed, preventing the main app from opening 
+        login_root.deiconify()     
 
     reg_window.protocol("WM_DELETE_WINDOW", on_close)
