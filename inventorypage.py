@@ -90,6 +90,7 @@ class InventoryPage(ctk.CTkFrame):
             font = ("Consolas", 12),
             highlightthickness = 0, bd = 0
         )
+        self.stock_list.bind("<<ListboxSelect>>", self.on_item_select)
         self.stock_list.pack(pady = 10, padx = 10, fill = "both", expand = True)
 
         self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
@@ -106,7 +107,6 @@ class InventoryPage(ctk.CTkFrame):
             self.stock[item] = qty
             self.thresholds[item] = 5
         self.refresh_stock()
-
 
     def add_item(self, item_name, quantity, threshold = 5):
         self.stock[item_name] = self.stock.get(item_name, 0) + quantity
@@ -207,7 +207,20 @@ class InventoryPage(ctk.CTkFrame):
         else:
             self.alert_label.configure(text = "")
 
+    def on_item_select(self, event):
+        try:
+            selection = self.stock_list.curselection()
+            if not selection:
+                return
+            index = selection[0]
+            line = self.stock_list.get(index)
+            item_name = line.split("|")[0].replace(".", "").strip()
 
+            self.entry_item.delete(0, tk.END)
+            self.entry_item.insert(0, item_name)
+        except Exception as e:
+            messagebox.showerror("Error", f"Selection failed : {e}")
+    
 if __name__ == "__main__":
     app = MEPIOApp()
     def on_theme_change(event = None):
