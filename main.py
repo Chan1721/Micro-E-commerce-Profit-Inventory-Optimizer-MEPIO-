@@ -49,7 +49,7 @@ class MEPIOApp(ctk.CTk):
         # Navigation items mapping[cite: 1]
         nav_items = [
             (" Dashboard", "dash"),
-            ("Orders", "orders"),
+            (" Orders", "orders"),
             (" Inventory", "inv"),
             (" Logistics", "logistics"),
             (" Calculator", "calculator"),
@@ -71,6 +71,7 @@ class MEPIOApp(ctk.CTk):
 
         # Initialize all page classes[cite: 1]
         self.pages["dash"] = DashboardPage(self, self)
+        self.pages["orders"] = OrderPage(self, self)
         self.pages["inv"] = InventoryPage(self, self)
         self.pages["logistics"] = LogisticsPage(self, self)
         self.pages["calculator"] = CalculatorPage(self, self)
@@ -101,6 +102,12 @@ class BasePage(ctk.CTkFrame):
         # Decorative separator line
         line = ctk.CTkFrame(self, height=2, fg_color="#E0E0E0")
         line.pack(fill="x", padx=20, pady=(0, 20))
+        self.bind("<Map>", self.on_page_show)
+
+    def on_page_show(self, event):
+        """Override this method in child classes to trigger actions when the page is shown."""
+        if event.widget == self:
+            self.execute_restock_analysis()
 
 class DashboardPage(BasePage):
     def __init__(self, parent, controller):
@@ -459,45 +466,38 @@ class CalculatorPage(BasePage):
 
 class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):
-        """
-        Initializes the Advanced Restock Optimization Analytics Page with Manual Key-in entries.
-        Upgraded with adaptive Light/Dark mode dynamic tuples to fully support appearance synchronization.
-        """
+        """Initializes the Advanced Restock Optimization Analytics Page with proper tuple bindings."""
         super().__init__(parent, controller, "Restock & Expiry Optimizer")
 
-        # --- Adaptive Color Palette Configuration ---
-        # Format: (Light Mode Color, Dark Mode Color)
+        # --- Standard Dual-Color Theme Configuration ---
         self.bg_side_panel = ("#F8FAFC", "#1E1E1E")
         self.bg_card_inner = ("#FFFFFF", "#252525")
         self.text_main_color = ("#1E293B", "#F1F5F9")
         self.text_sub_color = ("#64748B", "#94A3B8")
 
-        # --- Main Layout Framework (Two-Column Split Grid) ---
+        # --- Main Layout Framework ---
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
 
-        # =========================================================================
-        # LEFT COLUMN: CRITICAL ACTION ALERTS, MANUAL INPUTS & ADVISORY
-        # =========================================================================
-        # Scrollable frame now dynamically alters its background during theme shifts
+        # LEFT COLUMN
         self.left_frame = ctk.CTkScrollableFrame(self.main_container, width=340, corner_radius=15, fg_color=self.bg_side_panel)
         self.left_frame.pack(side="left", fill="both", expand=False, padx=(0, 10))
 
-        # KPI Card 1: Total Sourcing Capital Required Immediately (Red Alert Accent)
+        # KPI 1
         self.card_total_cost = ctk.CTkFrame(self.left_frame, fg_color=("#FF4D4D", "#E74C3C"), corner_radius=10)
         self.card_total_cost.pack(fill="x", pady=(0, 10), padx=5)
         ctk.CTkLabel(self.card_total_cost, text="Total Procurement Budget Needed", font=("Arial", 11, "bold"), text_color="white").pack(pady=(10, 2))
         self.lbl_total_cost_val = ctk.CTkLabel(self.card_total_cost, text="RM 0.00", font=("Arial", 22, "bold"), text_color="white")
         self.lbl_total_cost_val.pack(pady=(2, 10))
 
-        # KPI Card 2: Impending Expiry Risk Warning (Orange Warning Accent)
+        # KPI 2
         self.card_expiry_alert = ctk.CTkFrame(self.left_frame, fg_color=("#FFA502", "#E67E22"), corner_radius=10)
         self.card_expiry_alert.pack(fill="x", pady=10, padx=5)
         ctk.CTkLabel(self.card_expiry_alert, text="🚨 Inventory Batches Near Expiry", font=("Arial", 11), text_color="white").pack(pady=(10, 2))
         self.lbl_expiry_val = ctk.CTkLabel(self.card_expiry_alert, text="0 Units At Risk", font=("Arial", 18, "bold"), text_color="white")
         self.lbl_expiry_val.pack(pady=(2, 10))
 
-        # --- Manual Key-in Setup Group ---
+        # Inputs
         ctk.CTkLabel(self.left_frame, text="📊 Manual Optimization Inputs", font=("Arial", 13, "bold"), text_color="#3498db").pack(pady=(15, 10), anchor="w", padx=10)
         
         self.entries = {}
@@ -520,7 +520,6 @@ class AnalyticsPage(BasePage):
             entry.pack(side="right")
             self.entries[label_text] = entry
 
-        # Interactive Calculation Execution Trigger Button
         self.btn_calculate = ctk.CTkButton(
             self.left_frame, text="Run Restock Optimization", 
             fg_color="#27ae60", hover_color="#219150", 
@@ -528,7 +527,7 @@ class AnalyticsPage(BasePage):
         )
         self.btn_calculate.pack(pady=15, padx=10, fill="x")
 
-        # Supervisor Compliance Optimization Insight Console Box
+        # Insight Box
         self.insight_box = ctk.CTkFrame(self.left_frame, fg_color=self.bg_card_inner, corner_radius=10)
         self.insight_box.pack(fill="both", expand=True, pady=10, padx=5)
         ctk.CTkLabel(self.insight_box, text="📋 Smart Sourcing Recommendations", font=("Arial", 13, "bold"), text_color="#27ae60").pack(pady=10, anchor="w", padx=15)
@@ -536,16 +535,11 @@ class AnalyticsPage(BasePage):
         self.lbl_insight = ctk.CTkLabel(self.insight_box, text="", justify="left", font=("Arial", 11), text_color=self.text_sub_color, wraplength=280)
         self.lbl_insight.pack(pady=(0, 15), padx=15, fill="both")
 
-        # =========================================================================
-        # RIGHT COLUMN: VISUAL REORDER QUANTITY & COST COMPARISON CHART
-        # =========================================================================
-        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=("#FFFFFF", self.bg_card_inner), corner_radius=12)
+        # RIGHT COLUMN — FIXED: Correctly referenced variable to stop tuple nested errors
+        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=self.bg_card_inner, corner_radius=12)
         self.right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
-        # Safe tracking pipeline placeholder to manage the Matplotlib widget container element
         self.canvas_widget = None
-        
-        # Stream initial calculations automatically during interface layout mounting
         self.execute_restock_analysis()
 
     def execute_restock_analysis(self):
@@ -600,7 +594,7 @@ class AnalyticsPage(BasePage):
 
         products_sku = ['Manual Item\n[Simulated]', 'Mascara\n[MAS-002]', 'EyeLiner\n[EYE-003]']
         buy_quantities = [buy_qty, 200, 50] 
-        procurement_costs = [total_cost, 3650, 500] 
+        procurement_costs = [total_cost, 3650, 500]
 
         fig, ax1 = plt.subplots(figsize=(6, 4), facecolor=fig_face_color)
         ax1.set_facecolor(fig_face_color)
@@ -731,6 +725,70 @@ class HelpPage(BasePage):
                                "3. LOGISTICS: Manage shipping fees and track local orders.\n"
                                "4. SETTINGS: Adjust platform commission rates for Shopee/TikTok.")
         help_text.configure(state="disabled") # Read-only
+
+class OrderPage(BasePage):
+    def __init__(self, parent, controller):
+        """
+        Initializes the Dedicated Multi-Platform Order Aggregation Page.
+        Consolidates live order streams from Shopee, Lazada, and TikTok into a single view.
+        Fully compatible with adaptive Light/Dark mode switching.
+        """
+        super().__init__(parent, controller, "Multi-Platform Orders")
+
+        # --- Theme Adaptive Colors ---
+        self.bg_side_panel = ("#F8FAFC", "#1E1E1E")
+        self.bg_card_inner = ("#FFFFFF", "#252525")
+        self.bg_row_even = ("#F1F5F9", "#1D1E1F")
+        self.text_main = ("#1E293B", "#F1F5F9")
+        self.text_sub = ("#64748B", "#94A3B8")
+
+        # --- Main Container Split Layout ---
+        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # =========================================================================
+        # CONTAINER: CENTRALIZED ORDER STREAM TABLE
+        # =========================================================================
+        # We use a scrollable frame to act as the central datagrid for orders
+        self.order_table_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=12, fg_color=self.bg_card_inner)
+        self.order_table_frame.pack(fill="both", expand=True, pady=10, padx=5)
+
+        # Header Title with a sync theme color to look highly professional
+        ctk.CTkLabel(self.order_table_frame, text="🔄 Centralized Multi-Platform Order Stream", 
+                     font=("Arial", 15, "bold"), text_color="#3498db").pack(pady=(15, 10), anchor="w", padx=20)
+
+        # Mock Orders Database Template
+        # Structure: (Platform Channel, Order ID, Item Details, Total Value, Order Status, Status Color Layer)
+        aggregated_orders_mock = [
+            ("Shopee MY", "SHP-20260525-091", "Matte Lipstick [LIP-001] x2", "RM 30.00", "To Ship", "#e67e22"),
+            ("TikTok Shop", "TT-992314-MX", "Waterproof Mascara [MAS-002] x1", "RM 18.25", "To Ship", "#e67e22"),
+            ("Lazada MY", "LZD-77621-PL", "EyeLiner [EYE-003] x1", "RM 10.00", "Completed", "#27ae60"),
+            ("Shopee MY", "SHP-20260525-099", "Matte Lipstick [LIP-001] x1", "RM 15.00", "Unpaid", "#7f8c8d"),
+            ("TikTok Shop", "TT-992315-LK", "Matte Lipstick [LIP-001] x3", "RM 45.00", "Completed", "#27ae60"),
+            ("Lazada MY", "LZD-77625-AS", "Waterproof Mascara [MAS-002] x2", "RM 36.50", "To Ship", "#e67e22")
+        ]
+
+        # Render the custom rows inside the table grid container layout dynamically
+        for platform, order_id, items, value, status, status_color in aggregated_orders_mock:
+            row = ctk.CTkFrame(self.order_table_frame, fg_color=self.bg_row_even, corner_radius=8)
+            row.pack(fill="x", padx=20, pady=5)
+
+            # Left Section: Branding channel label identifiers
+            p_color = "#ff4500" if "Shopee" in platform else ("#111111", "#ffffff") if "TikTok" in platform else "#000080"
+            lbl_platform = ctk.CTkLabel(row, text=f"[{platform}]", font=("Arial", 11, "bold"), text_color=p_color, width=100, anchor="w")
+            lbl_platform.pack(side="left", padx=(15, 5), pady=8)
+
+            # Middle Section: Order Reference Code credentials & Product Meta description
+            lbl_details = ctk.CTkLabel(row, text=f"ID: {order_id}   |   {items}", font=("Arial", 12), text_color=self.text_main, anchor="w")
+            lbl_details.pack(side="left", padx=15)
+
+            # Right Section: Status Pill Badge Accent Layer
+            lbl_status = ctk.CTkLabel(row, text=status, font=("Arial", 10, "bold"), text_color="white", fg_color=status_color, corner_radius=5, width=80)
+            lbl_status.pack(side="right", padx=15)
+
+            # Right Section: Financial transaction cost statement
+            lbl_value = ctk.CTkLabel(row, text=value, font=("Arial", 12, "bold"), text_color=self.text_main, width=80, anchor="e")
+            lbl_value.pack(side="right", padx=15)
 
 if __name__ == "__main__":
     app = MEPIOApp()
