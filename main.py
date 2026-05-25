@@ -538,7 +538,7 @@ class AnalyticsPage(BasePage):
         # =========================================================================
         # RIGHT COLUMN: VISUAL REORDER QUANTITY & COST COMPARISON CHART
         # =========================================================================
-        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=("#FFFFFF", self.bg_card_inner), corner_radius=12)
+        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=("#FFFFFF", "#252525"), corner_radius=12)
         self.right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         # Safe tracking pipeline placeholder to manage the Matplotlib widget container element
