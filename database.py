@@ -83,6 +83,23 @@ def init_database():
         logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- Exact time the inventory movement took place
     )''')
 
+    # =========================================================================
+    # 5. SYSTEM SETTINGS TABLE (Global Configuration)
+    # =========================================================================
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS system_settings (
+        setting_id INTEGER PRIMARY KEY CHECK (setting_id = 1),
+        shopee_fee REAL DEFAULT 5.5,
+        tiktok_fee REAL DEFAULT 3.2,
+        lazada_fee REAL DEFAULT 4.0
+    )''')
+    #default fee rates for each platform, can be updated by Teammate A in the future. Only one row with setting_id = 1 will ever exist, serving as a singleton configuration record.
+    
+    cursor.execute('''
+    INSERT OR IGNORE INTO system_settings (setting_id, shopee_fee, tiktok_fee, lazada_fee) 
+    VALUES (1, 5.5, 3.2, 4.0)
+    ''')
+
     # Commit all table schemas to save changes permanently inside the .db file
     conn.commit()
     

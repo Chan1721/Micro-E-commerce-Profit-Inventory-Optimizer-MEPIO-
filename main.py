@@ -2,6 +2,7 @@ import customtkinter as ctk #shortcut for customtkinter as ctk
 import tkinter as tk 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import sqlite3
 ctk.set_appearance_mode("light")
 
 #importing the login page
@@ -214,13 +215,79 @@ class DashboardPage(BasePage):
                       border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                       command=lambda: controller.show_page("logistics")).pack(pady=8, padx=20, fill="x")
         
-        ctk.CTkButton(self.action_card, text="⚙️ Update Fee Rates", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
-                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
-                      command=lambda: controller.show_page("settings")).pack(pady=8, padx=20, fill="x")
-
         ctk.CTkButton(self.action_card, text="📊 View Profit Trends", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
                       border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                       command=lambda: controller.show_page("analytics")).pack(pady=8, padx=20, fill="x")
+
+
+###### open style accordion for fee update
+        self.fee_btn = ctk.CTkButton(self.action_card, text="⚙️ Update Fee Rates", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=self.toggle_fee_accordion)
+        self.fee_btn.pack(pady=8, padx=20, fill="x")
+
+        self.accordion_frame = ctk.CTkFrame(self.action_card, fg_color=("#F8F9FA", "#1E1E1E"), corner_radius=8)
+    
+        ctk.CTkLabel(self.accordion_frame, text="Set current commission % :", font=("Helvetica", 11, "italic"), text_color="gray").pack(pady=(8, 0), padx=15, anchor="w")
+
+        self.shopee_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Shopee (e.g. 5.5)", height=28, font=("Helvetica", 11))
+        self.shopee_entry.pack(pady=(10, 5), padx=15, fill="x")
+        
+        self.tiktok_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="TikTok (e.g. 3.2)", height=28, font=("Helvetica", 11))
+        self.tiktok_entry.pack(pady=5, padx=15, fill="x")
+        
+        self.lazada_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Lazada (e.g. 4.0)", height=28, font=("Helvetica", 11))
+        self.lazada_entry.pack(pady=5, padx=15, fill="x")
+        
+        self.save_fee_btn = ctk.CTkButton(self.accordion_frame, text="Save & Apply", fg_color="#27ae60", hover_color="#219150", height=28, font=("Helvetica", 11, "bold"), command=self.save_fees_inline)
+        self.save_fee_btn.pack(pady=(5, 10), padx=15, fill="x")
+
+        self.is_accordion_open = False
+    
+    def toggle_fee_accordion(self):
+        if self.is_accordion_open:
+            self.accordion_frame.pack_forget()  
+            self.is_accordion_open = False
+        else:
+            self.accordion_frame.pack(pady=5, padx=20, fill="x")  
+            self.is_accordion_open = True
+
+    def save_fees_inline(self):       
+        s_fee = self.shopee_entry.get()
+        t_fee = self.tiktok_entry.get()
+        l_fee = self.lazada_entry.get()
+
+        if not s_fee or not t_fee or not l_fee:
+            import tkinter.messagebox as messagebox
+            messagebox.showwarning("Incomplete", "Please fill in all rates!")
+            return
+        
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE system_settings 
+                SET shopee_fee=?, tiktok_fee=?, lazada_fee=? 
+                WHERE setting_id=1
+            ''', (float(s_fee), float(t_fee), float(l_fee)))
+            
+            conn.commit()
+            conn.close()
+
+            import tkinter.messagebox as messagebox
+            messagebox.showinfo("Success", f"Fee rates updated successfully!\nShopee: {s_fee}%\nTikTok: {t_fee}%\nLazada: {l_fee}%") 
+            
+            self.toggle_fee_accordion()
+
+        except ValueError:
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Error", "Please enter valid numbers (e.g., 5.5)!")
+        except Exception as e:
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Database Error", f"Something went wrong: {e}")
+
+######accordion style         
 
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):
@@ -539,25 +606,6 @@ class SettingsPage(BasePage):
         self.export_btn.pack(pady=10, padx=25, anchor="w")
 
 
-        # Right Column: Platform Fee Configurations
-        # dont know where to put first so,if want can just copy to other pages
-        self.fee_card = ctk.CTkFrame(self.content_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
-        self.fee_card.pack(side="right", fill="both", expand=True, padx=(15, 0))
-
-        ctk.CTkLabel(self.fee_card, text="Platform Fee Rates", font=("Helvetica", 16, "bold")).pack(pady=(25, 10), padx=25, anchor="w")
-        ctk.CTkLabel(self.fee_card, text="Update the current commission rates for accurate profit calculation.", font=("Helvetica", 12), text_color="gray").pack(padx=25, anchor="w", pady=(0, 20))
-
-        self.shopee_entry = ctk.CTkEntry(self.fee_card, placeholder_text="Shopee Fee (e.g. 5.5%)", width=250)
-        self.shopee_entry.pack(pady=10, padx=25, anchor="w")
-
-        self.tiktok_entry = ctk.CTkEntry(self.fee_card, placeholder_text="TikTok Shop Fee (e.g. 3.2%)", width=250)
-        self.tiktok_entry.pack(pady=10, padx=25, anchor="w")
-
-        self.lazada_entry = ctk.CTkEntry(self.fee_card, placeholder_text="Lazada Fee (e.g. 4.0%)", width=250)
-        self.lazada_entry.pack(pady=10, padx=25, anchor="w")
-
-        self.update_fee_btn = ctk.CTkButton(self.fee_card, text="Save Fee Updates", fg_color="#5DC66A", hover_color="#4CAF50", width=250, command=self.save_fees_mock)
-        self.update_fee_btn.pack(pady=(25, 10), padx=25, anchor="w")
 
     # Backend Integration Placeholder 
     def save_fees_mock(self):
