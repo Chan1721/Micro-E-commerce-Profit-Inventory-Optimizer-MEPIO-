@@ -304,12 +304,16 @@ class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):
         """
         Initializes the Advanced Restock Optimization Analytics Page with Manual Key-in entries.
-        This framework addresses the Supervisor's feedback by allowing users to manually input
-        current stock, daily sales velocity, and near-expiry stock to dynamically calculate:
-        1. Exact Recommended Reorder Quantity (Buy How Many)
-        2. Expected Sourcing Capital Demands (Total Procurement Cost)
+        Upgraded with adaptive Light/Dark mode dynamic tuples to fully support appearance synchronization.
         """
         super().__init__(parent, controller, "Restock & Expiry Optimizer")
+
+        # --- Adaptive Color Palette Configuration ---
+        # Format: (Light Mode Color, Dark Mode Color)
+        self.bg_side_panel = ("#F8FAFC", "#1E1E1E")
+        self.bg_card_inner = ("#FFFFFF", "#252525")
+        self.text_main_color = ("#1E293B", "#F1F5F9")
+        self.text_sub_color = ("#64748B", "#94A3B8")
 
         # --- Main Layout Framework (Two-Column Split Grid) ---
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -318,19 +322,19 @@ class AnalyticsPage(BasePage):
         # =========================================================================
         # LEFT COLUMN: CRITICAL ACTION ALERTS, MANUAL INPUTS & ADVISORY
         # =========================================================================
-        # Standardized scrollable frame to ensure all manual input controls fit perfectly on small screens
-        self.left_frame = ctk.CTkScrollableFrame(self.main_container, width=340, corner_radius=15, fg_color="#1e1e1e")
+        # Scrollable frame now dynamically alters its background during theme shifts
+        self.left_frame = ctk.CTkScrollableFrame(self.main_container, width=340, corner_radius=15, fg_color=self.bg_side_panel)
         self.left_frame.pack(side="left", fill="both", expand=False, padx=(0, 10))
 
-        # KPI Card 1: Total Sourcing Capital Required Immediately
-        self.card_total_cost = ctk.CTkFrame(self.left_frame, fg_color="#e74c3c", corner_radius=10)
+        # KPI Card 1: Total Sourcing Capital Required Immediately (Red Alert Accent)
+        self.card_total_cost = ctk.CTkFrame(self.left_frame, fg_color=("#FF4D4D", "#E74C3C"), corner_radius=10)
         self.card_total_cost.pack(fill="x", pady=(0, 10), padx=5)
         ctk.CTkLabel(self.card_total_cost, text="Total Procurement Budget Needed", font=("Arial", 11, "bold"), text_color="white").pack(pady=(10, 2))
         self.lbl_total_cost_val = ctk.CTkLabel(self.card_total_cost, text="RM 0.00", font=("Arial", 22, "bold"), text_color="white")
         self.lbl_total_cost_val.pack(pady=(2, 10))
 
-        # KPI Card 2: Impending Expiry Risk Warning
-        self.card_expiry_alert = ctk.CTkFrame(self.left_frame, fg_color="#e67e22", corner_radius=10)
+        # KPI Card 2: Impending Expiry Risk Warning (Orange Warning Accent)
+        self.card_expiry_alert = ctk.CTkFrame(self.left_frame, fg_color=("#FFA502", "#E67E22"), corner_radius=10)
         self.card_expiry_alert.pack(fill="x", pady=10, padx=5)
         ctk.CTkLabel(self.card_expiry_alert, text="🚨 Inventory Batches Near Expiry", font=("Arial", 11), text_color="white").pack(pady=(10, 2))
         self.lbl_expiry_val = ctk.CTkLabel(self.card_expiry_alert, text="0 Units At Risk", font=("Arial", 18, "bold"), text_color="white")
@@ -340,11 +344,10 @@ class AnalyticsPage(BasePage):
         ctk.CTkLabel(self.left_frame, text="📊 Manual Optimization Inputs", font=("Arial", 13, "bold"), text_color="#3498db").pack(pady=(15, 10), anchor="w", padx=10)
         
         self.entries = {}
-        # Structured parameter fields: (Label Name, Default Pre-fill Value)
         input_fields = [
             ("Current Local Stock (Units)", "50"),
             ("Average Daily Sales (Units)", "10"),
-            ("Stock Near Expiry (Units)", "35"),  # Matches your original example data setup
+            ("Stock Near Expiry (Units)", "35"),
             ("Supplier Cost per Unit (RM)", "10.00")
         ]
         
@@ -352,7 +355,7 @@ class AnalyticsPage(BasePage):
             row = ctk.CTkFrame(self.left_frame, fg_color="transparent")
             row.pack(fill="x", padx=10, pady=5)
             
-            lbl = ctk.CTkLabel(row, text=label_text, anchor="w", font=("Arial", 11))
+            lbl = ctk.CTkLabel(row, text=label_text, anchor="w", font=("Arial", 11), text_color=self.text_main_color)
             lbl.pack(side="left")
             
             entry = ctk.CTkEntry(row, placeholder_text=default_val, width=80)
@@ -369,17 +372,17 @@ class AnalyticsPage(BasePage):
         self.btn_calculate.pack(pady=15, padx=10, fill="x")
 
         # Supervisor Compliance Optimization Insight Console Box
-        self.insight_box = ctk.CTkFrame(self.left_frame, fg_color="#252525", corner_radius=10)
+        self.insight_box = ctk.CTkFrame(self.left_frame, fg_color=self.bg_card_inner, corner_radius=10)
         self.insight_box.pack(fill="both", expand=True, pady=10, padx=5)
         ctk.CTkLabel(self.insight_box, text="📋 Smart Sourcing Recommendations", font=("Arial", 13, "bold"), text_color="#27ae60").pack(pady=10, anchor="w", padx=15)
         
-        self.lbl_insight = ctk.CTkLabel(self.insight_box, text="", justify="left", font=("Arial", 11), text_color="#bbbbbb", wraplength=280)
+        self.lbl_insight = ctk.CTkLabel(self.insight_box, text="", justify="left", font=("Arial", 11), text_color=self.text_sub_color, wraplength=280)
         self.lbl_insight.pack(pady=(0, 15), padx=15, fill="both")
 
         # =========================================================================
         # RIGHT COLUMN: VISUAL REORDER QUANTITY & COST COMPARISON CHART
         # =========================================================================
-        self.right_frame = ctk.CTkFrame(self.main_container, fg_color="#252525", corner_radius=12)
+        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=self.bg_card_inner, corner_radius=12)
         self.right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         # Safe tracking pipeline placeholder to manage the Matplotlib widget container element
@@ -389,38 +392,26 @@ class AnalyticsPage(BasePage):
         self.execute_restock_analysis()
 
     def execute_restock_analysis(self):
-        """
-        Extracts values from the manual entries, executes the math matrix logic,
-        updates the UI text labels, and triggers the dynamic chart refresh.
-        """
+        """Extracts values from the manual entries, executes calculation math and refreshes the layout."""
         try:
-            # 1. Capture numerical input value parameters safely from entry fields
             current_stock = int(self.entries["Current Local Stock (Units)"].get())
             daily_sales = int(self.entries["Average Daily Sales (Units)"].get())
             expiry_stock = int(self.entries["Stock Near Expiry (Units)"].get())
             unit_cost = float(self.entries["Supplier Cost per Unit (RM)"].get())
 
-            # =========================================================================
-            # CORE ALGORITHM (Inventory Replenishment Math)
-            # =========================================================================
-            # Target pipeline: We aim to hold safe inventory to survive the next 30 days confidently
+            # Core Optimization Algorithm
             target_30d_demand = daily_sales * 30
-            
-            # Inventory expiry hazard factor: Stock near expiry is a liability write-off risk. 
-            # We subtract it from our safe usable baseline stock.
             usable_safe_stock = current_stock - expiry_stock
             if usable_safe_stock < 0:
                 usable_safe_stock = 0
 
-            # "Buy How Many" formula formula
             recommended_buy_qty = target_30d_demand - usable_safe_stock
             if recommended_buy_qty < 0:
                 recommended_buy_qty = 0
 
-            # "Its Cost" formula formula
             total_procurement_cost = recommended_buy_qty * unit_cost
 
-            # 2. Update Dashboard Summary Text UI Elements
+            # Update Text Outputs
             self.lbl_total_cost_val.configure(text=f"RM {total_procurement_cost:,.2f}")
             self.lbl_expiry_val.configure(text=f"{expiry_stock} Units At Risk")
 
@@ -431,57 +422,53 @@ class AnalyticsPage(BasePage):
                 f"➔ Recommended Buy: {recommended_buy_qty} units\n"
                 f"➔ Sourcing Cost: RM {total_procurement_cost:,.2f}"
             )
-            self.lbl_insight.configure(text=recommendation_text)
+            self.lbl_insight.configure(text=recommendation_text, text_color=self.text_sub_color)
 
-            # 3. Dynamic secondary execution to refresh the visual canvas plot
+            # Re-render adaptive chart plot parameters
             self.render_optimization_chart(recommended_buy_qty, total_procurement_cost)
 
         except ValueError:
             self.lbl_insight.configure(text="⚠️ Error: Please check inputs. Use digits only.", text_color="#e74c3c")
 
     def render_optimization_chart(self, buy_qty, total_cost):
-        """
-        Generates a dual-axis Matplotlib chart using live dynamic calculation data parameters.
-        Destroys older layout frames to successfully avoid python background memory leak issues.
-        """
-        # Step A: Clean up previous chart elements to ensure efficient RAM utilization
+        """Generates a dynamic multi-axis chart reacting to app configuration changes."""
         if self.canvas_widget is not None:
             self.canvas_widget.destroy()
 
-        # Hardcoded simulated SKUs list to plot beside our manual item metrics
+        # Fetch current background state from system runtime settings to style Matplotlib canvas
+        current_mode = ctk.get_appearance_mode()
+        fig_face_color = "#FFFFFF" if current_mode == "Light" else "#252525"
+        label_axis_color = "#1E293B" if current_mode == "Light" else "#FFFFFF"
+        grid_line_color = "#E2E8F0" if current_mode == "Light" else "#404040"
+
         products_sku = ['Manual Item\n[Simulated]', 'Mascara\n[MAS-002]', 'EyeLiner\n[EYE-003]']
-        
-        # Inject our calculated results as the first product item list element, keeping the others as reference templates
         buy_quantities = [buy_qty, 200, 50] 
         procurement_costs = [total_cost, 3650, 500] 
 
-        # Initialize the figure canvas frame layout
-        fig, ax1 = plt.subplots(figsize=(6, 4), facecolor='#252525')
-        ax1.set_facecolor('#252525')
+        fig, ax1 = plt.subplots(figsize=(6, 4), facecolor=fig_face_color)
+        ax1.set_facecolor(fig_face_color)
 
-        # Primary Axis (Left Side): Bar chart plotting precise Reorder Volumes (Buy How Many)
+        # Primary Axis (Left Side Volume Chart Bars)
         color_bars = '#3498db'
         ax1.set_ylabel('Recommended Reorder Qty (Units)', color=color_bars, fontsize=11, fontweight='bold', labelpad=10)
-        bars = ax1.bar(products_sku, buy_quantities, color=color_bars, width=0.35, alpha=0.8, label='Order Quantity')
-        ax1.tick_params(axis='y', labelcolor=color_bars, colors='white')
+        bars = ax1.bar(products_sku, buy_quantities, color=color_bars, width=0.35, alpha=0.8)
+        ax1.tick_params(axis='y', labelcolor=color_bars)
         
-        # Secondary Axis (Right Side): Twin overlay line chart mapping the matching Cost Prices
+        # Secondary Axis (Right Side Line Cost Overlay)
         ax2 = ax1.twinx()
         color_line = '#2ecc71'
         ax2.set_ylabel('Total Sourcing Cost (RM)', color=color_line, fontsize=11, fontweight='bold', labelpad=10)
-        line = ax2.plot(products_sku, procurement_costs, color=color_line, marker='o', linewidth=2, label='Procurement Cost (RM)')
-        ax2.tick_params(axis='y', labelcolor=color_line, colors='white')
+        line = ax2.plot(products_sku, procurement_costs, color=color_line, marker='o', linewidth=2)
+        ax2.tick_params(axis='y', labelcolor=color_line)
 
-        # Adjust final interface formatting elements
-        ax1.tick_params(axis='x', colors='white', labelsize=10)
-        ax1.set_title("Restock Optimizer: Required Volumes & Supplier Costs", color='white', fontsize=12, pad=15, fontweight='bold')
-        ax1.yaxis.grid(True, linestyle='--', alpha=0.1, color='gray')
+        # Custom Axis Tick Aesthetics syncing with theme
+        ax1.tick_params(axis='x', colors=label_axis_color, labelsize=10)
+        ax1.set_title("Restock Optimizer: Required Volumes & Supplier Costs", color=label_axis_color, fontsize=12, pad=15, fontweight='bold')
+        ax1.yaxis.grid(True, linestyle='--', alpha=0.3, color=grid_line_color)
 
-        # Clear bounding wire borders for professional look
         for spine in list(ax1.spines.values()) + list(ax2.spines.values()):
             spine.set_visible(False)
 
-        # Embed the refreshed Matplotlib canvas back into CustomTkinter graphics pipeline
         canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
         canvas.draw()
         self.canvas_widget = canvas.get_tk_widget()
