@@ -1,6 +1,7 @@
 import customtkinter as CTk
 import tkinter as tk
 import tkinter.messagebox as messagebox
+import sqlite3
 
 def open_register_window(login_root):
     reg_window = CTk.CTkToplevel()
@@ -8,16 +9,20 @@ def open_register_window(login_root):
     reg_window.geometry("720x440")
     reg_window.resizable(True, True)
 
+    container = CTk.CTkFrame(reg_window, fg_color="#ffffff", corner_radius=12, width=720, height=440)
+    container.place(relx=0.5, rely=0.5, anchor="center")
+    container.pack_propagate(False)
+
 
 # Left Brand Area 
-    left = tk.Canvas(reg_window, width=280, height=440, highlightthickness=0, bg="#2d6cdf")
+    left = tk.Canvas(container, width=280, height=440, highlightthickness=0, bg="#2d6cdf")
     left.place(x=0, y=0)
     left.create_oval(-60, -60, 240, 240, fill="#4a84e8", outline="")
     left.create_text(120, 100, text="MEPIO", font=("Georgia", 48, "bold"), fill="white", anchor="center")
     left.create_text(36, 330, text="Welcome", font=("Helvetica", 18, "bold"), fill="white", anchor="w")
     left.create_text(36, 358, text="Micro-E-commerce Profit\n& Inventory Optimizer", font=("Helvetica", 9), fill="#b8d4ff", anchor="w", justify="left")
 
-    right = CTk.CTkFrame(reg_window, fg_color="#ffffff", width=440, height=440, corner_radius=0)
+    right = CTk.CTkFrame(container, fg_color="#ffffff", width=440, height=440, corner_radius=0)
     right.place(x=280, y=0)
 
     def on_close():
@@ -31,7 +36,7 @@ def open_register_window(login_root):
   
     back_btn.place(x=15, y=15)
 
-    shadow = CTk.CTkFrame(reg_window, fg_color="#d0d8f0", width=4, height=440, corner_radius=0)
+    shadow = CTk.CTkFrame(container, fg_color="#d0d8f0", width=4, height=440, corner_radius=0)
     shadow.place(x=280, y=0)
 
     register_label = CTk.CTkLabel(right, text="Register", font=("Helvetica", 17, "bold"), text_color="#1a1a1a")
@@ -70,6 +75,10 @@ def open_register_window(login_root):
             messagebox.showwarning("Warning", "Please fill in all fields!")
             return
         
+        if len(pwd) < 6:
+            messagebox.showwarning("Warning", "Your password must be at least 6 characters long!")
+            return
+        
         #check if the users fill the same as confirm pwd
         if pwd != confirm_pwd:
             messagebox.showerror("Error", "Passwords do not match!")
@@ -94,9 +103,30 @@ def open_register_window(login_root):
             if answer == "":
                 messagebox.showerror("Error", "Please provide an answer!")
                 return
-            messagebox.showinfo("Success", f"Account created for {username}!\nAnswer saved: {answer}")
-            sec_window.destroy()
-            on_close()
+            
+            try:
+                conn = sqlite3.connect('mepio_system.db')
+                cursor = conn.cursor()
+
+                cursor.execute('''
+                    INSERT INTO users (username, password_hash) 
+                    VALUES (?, ?)
+                ''', (username, pwd))
+
+                conn.commit()
+                conn.close()
+
+                messagebox.showinfo("Success", f"Account successfully created for {username}!\n(Tell backend to add security_answer column!)")
+                sec_window.destroy()
+                
+                reg_window.destroy()
+                login_root.deiconify()
+
+            except sqlite3.IntegrityError:
+                messagebox.showerror("Error", "Username already exists! Please choose another one.")
+                conn.close()
+            except Exception as e:
+                messagebox.showerror("Database Error", f"Something went wrong: {e}")
 
         complete_btn = CTk.CTkButton(sec_window, text="Complete Registration", fg_color="#0a192f", hover_color="#132b4f", width=320, height=40, command=final_answer)
         complete_btn.place(x=40, y=190)    
@@ -110,6 +140,6 @@ def open_register_window(login_root):
 
     def on_close():
         reg_window.destroy()
-        login_root.deiconify() 
+        login_root.deiconify()     
 
     reg_window.protocol("WM_DELETE_WINDOW", on_close)

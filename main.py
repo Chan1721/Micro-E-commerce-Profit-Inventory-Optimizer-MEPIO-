@@ -2,6 +2,7 @@ import customtkinter as ctk #shortcut for customtkinter as ctk
 import tkinter as tk 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import sqlite3
 ctk.set_appearance_mode("light")
 
 #importing the login page
@@ -30,15 +31,15 @@ class MEPIOApp(ctk.CTk):
                          corner_radius=8, fg_color="#4F6EF7")
         logo_box.pack(side="left")
         logo_box.pack_propagate(False)  # keeps the box at 36x36
-        ctk.CTkLabel(logo_box, text="M", font=("SF Pro Display", 18, "bold"),
+        ctk.CTkLabel(logo_box, text="M", font=("Helvetica", 18, "bold"),
              text_color="white").place(relx=0.5, rely=0.5, anchor="center")
 
         # Text next to the logo
         text_col = ctk.CTkFrame(brand_frame, fg_color="transparent")
         text_col.pack(side="left", padx=(10, 0))
-        ctk.CTkLabel(text_col, text="MEPIO", font=("SF Pro Display", 17, "bold"),
+        ctk.CTkLabel(text_col, text="MEPIO", font=("Helvetica", 17, "bold"),
              text_color="#4F6EF7").pack(anchor="w")
-        ctk.CTkLabel(text_col, text="Profit & Inventory", font=("SF Pro Display", 10),
+        ctk.CTkLabel(text_col, text="Profit & Inventory", font=("Helvetica", 10),
              text_color="#94A3B8").pack(anchor="w")
 
         # Thin grey line below the brand
@@ -47,13 +48,13 @@ class MEPIOApp(ctk.CTk):
 
         # Navigation items mapping[cite: 1]
         nav_items = [
-            ("🏠  Dashboard", "dash"),
-            ("📦  Inventory", "inv"),
-            ("🚚  Logistics", "logistics"),
-            ("🧮  Calculator", "calculator"),
-            ("📊  Analytics", "analytics"),
-            ("⚙️  Settings", "settings"),
-            ("❓  Help & Support", "help")
+            (" Dashboard", "dash"),
+            (" Inventory", "inv"),
+            (" Logistics", "logistics"),
+            (" Calculator", "calculator"),
+            (" Analytics", "analytics"),
+            (" Settings", "settings"),
+            (" Help & Support", "help")
         ]
 
         # Generate sidebar buttons dynamically to avoid variable conflicts[cite: 1]
@@ -109,29 +110,184 @@ class DashboardPage(BasePage):
         self.stats_frame.pack(fill="x", padx=20)
         
         metrics = [
-            ("Total Revenue", "RM 12,450.00"), 
-            ("Net Profit", "RM 4,200.50"), 
-            ("Platform Fees", "RM 850.20"), 
-            ("Low Stock", "5 Items")
+            ("Total Revenue", "RM 12,450.00", "+5.2% vs last month", "up"), 
+            ("Net Profit", "RM 4,200.50", "-1.5% vs last month", "down"), 
+            ("Platform Fees", "RM 850.20", "+12.0% vs last month", "up"), 
+            ("Low Stock", "5 Items", "Requires Attention", "down")
         ]
         
-        for name, value in metrics:
+        for name, value, trend, direction in metrics:
             card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
             card.pack(side="left", padx=10, fill="both", expand=True)
-            ctk.CTkLabel(card, text=name, font=("SF Pro Display", 12), text_color="gray").pack(pady=(15, 0))
-            ctk.CTkLabel(card, text=value, font=("SF Pro Display", 18, "bold")).pack(pady=(5, 15))
+            ctk.CTkLabel(card, text=name, font=("Helvetica", 12), text_color="gray").pack(pady=(15, 0))
+            ctk.CTkLabel(card, text=value, font=("Helvetica", 18, "bold")).pack(pady=(5, 15))
 
-        # Platform Fee Section (Result of Market Research)
-        self.fee_info = ctk.CTkFrame(self, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
-        self.fee_info.pack(pady=30, padx=30, fill="both", expand=True)
-        ctk.CTkLabel(self.fee_info, text="Active Platform Fee Settings", font=("SF Pro Display", 16, "bold")).pack(pady=15)
+            trend_color = "#2ecc71" if direction == "up" else "#e74c3c"
+            ctk.CTkLabel(card, text=trend, font=("Helvetica", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
+
+            # Bottom layout wrapper (Left and Right)
+        self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        self.bottom_wrapper.pack(fill="both", expand=True, padx=20, pady=20)
+
+    #platform benchmarking chart on the left
+        self.chart_frame = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.chart_frame.pack(side="left", fill="both", expand=True) 
         
-        fee_text = (
-            "• Shopee MY: 4.0% Commission + 2.12% Transaction Fee\n"
-            "• TikTok Shop: 2.0% Marketplace Fee + Service Fee\n"
-            "• Lazada: Standard Category-based Commission"
-        )
-        ctk.CTkLabel(self.fee_info, text=fee_text, justify="left", font=("SF Pro Display", 13), text_color="#bbbbbb").pack(pady=10)
+        ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Helvetica", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
+        ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Helvetica", 12), text_color="gray").pack(anchor="w", padx=20)
+
+
+        current_mode = ctk.get_appearance_mode()
+        if current_mode == "Dark":
+            text_clr = "#CCCCCC"  
+            grid_clr = "#444444"  
+            
+        else:
+            text_clr = "#555555"  
+            grid_clr = "#E0E0E0"  
+
+        fig, ax = plt.subplots(figsize=(4,2), dpi=100)
+        fig.patch.set_facecolor("none") 
+        ax.set_facecolor("none")
+
+        platforms = ['Shopee MY', 'TikTok Shop', 'Lazada'] 
+        x = [0, 1, 2] 
+        
+    
+        width = 0.15 
+
+
+        revenue = [5800, 4100, 2600]
+        net_profit = [1800, 1500, 900]
+        platform_fees = [300, 200, 100]
+
+        color_rev = '#637AFA'   
+        color_prof = '#5DC66A'  
+        color_fee = '#EAA844'   
+
+        ax.bar([i - width for i in x], revenue, width=width, label='Revenue', color=color_rev)
+        ax.bar(x, net_profit, width=width, label='Net profit', color=color_prof)
+        ax.bar([i + width for i in x], platform_fees, width=width, label='Platform fees', color=color_fee)
+
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels(platforms, color=text_clr, fontsize=4, fontweight ='bold',fontname='Helvetica')
+        ax.tick_params(axis='y', colors=text_clr, labelsize=5)
+
+        for label in ax.get_yticklabels(): #params cant change fontname in tick_params, have to loop through labels
+            label.set_fontname("Helvetica")
+            label.set_fontsize(8)
+            label.set_fontweight("bold")
+
+        ax.yaxis.grid(True, color=grid_clr, linestyle='-', linewidth=0.5, alpha=0.5)
+        ax.set_axisbelow(True) 
+        for spine in ax.spines.values():
+            spine.set_visible(False) 
+        ax.spines['bottom'].set_visible(True) 
+        ax.spines['bottom'].set_color(grid_clr)
+
+    
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'family': 'Helvetica', 'size': 8, 'weight': 'bold'})
+
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(5, 10))
+
+        # --- Right Side: Vertical Quick Actions ---
+        self.action_card = ctk.CTkFrame(self.bottom_wrapper, width=220, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.action_card.pack(side="right", fill="y")
+        self.action_card.pack_propagate(False) 
+        
+        ctk.CTkLabel(self.action_card, text="Quick Actions", font=("Helvetica", 16, "bold")).pack(pady=(20, 15))
+        
+        # Action Buttons
+        ctk.CTkButton(self.action_card, text="➕ Calculate Profit", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("calculator")).pack(pady=8, padx=20, fill="x")
+                      
+        ctk.CTkButton(self.action_card, text="🔄 Sync Inventory", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("inv")).pack(pady=8, padx=20, fill="x")
+                      
+        ctk.CTkButton(self.action_card, text="📦 Restock Low Items", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("logistics")).pack(pady=8, padx=20, fill="x")
+        
+        ctk.CTkButton(self.action_card, text="📊 View Profit Trends", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=lambda: controller.show_page("analytics")).pack(pady=8, padx=20, fill="x")
+
+
+###### open style accordion for fee update
+        self.fee_btn = ctk.CTkButton(self.action_card, text="⚙️ Update Fee Rates", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+                      border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
+                      command=self.toggle_fee_accordion)
+        self.fee_btn.pack(pady=8, padx=20, fill="x")
+
+        self.accordion_frame = ctk.CTkFrame(self.action_card, fg_color=("#F8F9FA", "#1E1E1E"), corner_radius=8)
+    
+        ctk.CTkLabel(self.accordion_frame, text="Set current commission % :", font=("Helvetica", 11, "italic"), text_color="gray").pack(pady=(8, 0), padx=15, anchor="w")
+
+        self.shopee_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Shopee (e.g. 5.5)", height=28, font=("Helvetica", 11))
+        self.shopee_entry.pack(pady=(10, 5), padx=15, fill="x")
+        
+        self.tiktok_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="TikTok (e.g. 3.2)", height=28, font=("Helvetica", 11))
+        self.tiktok_entry.pack(pady=5, padx=15, fill="x")
+        
+        self.lazada_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Lazada (e.g. 4.0)", height=28, font=("Helvetica", 11))
+        self.lazada_entry.pack(pady=5, padx=15, fill="x")
+        
+        self.save_fee_btn = ctk.CTkButton(self.accordion_frame, text="Save & Apply", fg_color="#27ae60", hover_color="#219150", height=28, font=("Helvetica", 11, "bold"), command=self.save_fees_inline)
+        self.save_fee_btn.pack(pady=(5, 10), padx=15, fill="x")
+
+        self.is_accordion_open = False
+    
+    def toggle_fee_accordion(self):
+        if self.is_accordion_open:
+            self.accordion_frame.pack_forget()  
+            self.is_accordion_open = False
+        else:
+            self.accordion_frame.pack(pady=5, padx=20, fill="x")  
+            self.is_accordion_open = True
+
+    def save_fees_inline(self):       
+        s_fee = self.shopee_entry.get()
+        t_fee = self.tiktok_entry.get()
+        l_fee = self.lazada_entry.get()
+
+        if not s_fee or not t_fee or not l_fee:
+            import tkinter.messagebox as messagebox
+            messagebox.showwarning("Incomplete", "Please fill in all rates!")
+            return
+        
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE system_settings 
+                SET shopee_fee=?, tiktok_fee=?, lazada_fee=? 
+                WHERE setting_id=1
+            ''', (float(s_fee), float(t_fee), float(l_fee)))
+            
+            conn.commit()
+            conn.close()
+
+            import tkinter.messagebox as messagebox
+            messagebox.showinfo("Success", f"Fee rates updated successfully!\nShopee: {s_fee}%\nTikTok: {t_fee}%\nLazada: {l_fee}%") 
+            
+            self.toggle_fee_accordion()
+
+        except ValueError:
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Error", "Please enter valid numbers (e.g., 5.5)!")
+        except Exception as e:
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Database Error", f"Something went wrong: {e}")
+
+######accordion style         
 
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):
@@ -154,7 +310,7 @@ class CalculatorPage(BasePage):
         self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
 
         # --- Left Column: Inputs (Scrollable to prevent overcrowding) ---
-        self.input_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=15, fg_color="#252525", width=500)
+        self.input_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=15, fg_color=("#FFFFFF", "#252525"), width=500)
         self.input_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         # Section 1: Product & Platform Details
@@ -175,7 +331,7 @@ class CalculatorPage(BasePage):
         # Preset Package Size Selection
         size_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
         size_frame.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(size_frame, text="Package Size Preset:", width=150, anchor="w").pack(side="left")
+        ctk.CTkLabel(size_frame, text="Package Size Preset:", width=150, anchor="w", text_color=("#333333", "#E0E0E0")).pack(side="left")
         
         self.size_option = ctk.CTkOptionMenu(
             size_frame, 
@@ -200,7 +356,7 @@ class CalculatorPage(BasePage):
         self.calc_btn.pack(pady=25, padx=40, fill="x")
 
         # --- Right Column: Financial Results ---
-        self.result_frame = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color="#1e1e1e")
+        self.result_frame = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color=("#FFFFFF", "#1e1e1e"))
         self.result_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         ctk.CTkLabel(self.result_frame, text="Financial Summary", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=15)
@@ -221,7 +377,7 @@ class CalculatorPage(BasePage):
             row = ctk.CTkFrame(self.input_frame, fg_color="transparent")
             row.pack(fill="x", padx=20, pady=5)
             
-            lbl = ctk.CTkLabel(row, text=label_text, width=180, anchor="w")
+            lbl = ctk.CTkLabel(row, text=label_text, width=180, anchor="w", text_color=("#333333", "#E0E0E0"))
             lbl.pack(side="left")
             
             entry = ctk.CTkEntry(row, placeholder_text=default_val)
@@ -233,7 +389,7 @@ class CalculatorPage(BasePage):
         row = ctk.CTkFrame(self.result_frame, fg_color="transparent")
         row.pack(fill="x", padx=30, pady=12)
         
-        lbl = ctk.CTkLabel(row, text=label_text, font=("Helvetica", 13))
+        lbl = ctk.CTkLabel(row, text=label_text, font=("Helvetica", 13), text_color=("#1A1A1A", "white"))
         lbl.pack(side="left")
         
         val_lbl = ctk.CTkLabel(row, text=value_text, font=("Helvetica", 18, "bold"), text_color=color)
@@ -356,7 +512,7 @@ class AnalyticsPage(BasePage):
         # RIGHT COLUMN: VISUAL REORDER QUANTITY & COST COMPARISON CHART
         # =========================================================================
         
-        self.right_frame = ctk.CTkFrame(self.main_container, fg_color="#252525", corner_radius=12)
+        self.right_frame = ctk.CTkFrame(self.main_container, fg_color=("#FFFFFF", "#252525"), corner_radius=12)
         self.right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         # Render the enhanced visual chart matching the supervisor's metrics
@@ -403,16 +559,64 @@ class AnalyticsPage(BasePage):
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True, padx=15, pady=15)
 
+
+
+    def calculate_all_roi(self):
+        def get_roi(cost_entry, profit_entry, res_label):
+            try:
+                cost = float(cost_entry.get())
+                profit = float(profit_entry.get())
+                
+                if cost == 0:
+                    res_label.configure(text="Error", text_color="red")
+                    return
+                
+                roi = (profit / cost) * 100
+                
+                res_label.configure(text=f"{roi:.1f}%", text_color="#27ae60" if roi > 0 else "red")
+            except ValueError:
+                res_label.configure(text="-- %", text_color="gray")
+
+        get_roi(self.sp_cost, self.sp_profit, self.sp_res)
+        get_roi(self.tk_cost, self.tk_profit, self.tk_res)
+        get_roi(self.lz_cost, self.lz_profit, self.lz_res)
+
 class SettingsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "System Settings")  
 
-        self.dark_mode_switch = ctk.CTkSwitch(self, text="Enable Dark Mode Visualization" , command=self.toggle_dark_mode)
-        self.dark_mode_switch.select()
-        self.dark_mode_switch.pack(pady=20, padx=30, anchor="w")
+        # --- Main Layout: Two-Column Container ---
+        self.content_wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_wrapper.pack(fill="both", expand=True, padx=40, pady=10)
+
         
-        ctk.CTkButton(self, text="Sync Database", width=150).pack(pady=10, padx=30, anchor="w")
-        ctk.CTkButton(self, text="Export Settings", width=150, border_width=1).pack(pady=10, padx=30, anchor="w")
+        # Left Column: General System Preferences
+        self.sys_card = ctk.CTkFrame(self.content_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.sys_card.pack(side="left", fill="both", expand=True, padx=(0, 15))
+
+        ctk.CTkLabel(self.sys_card, text="General Preferences", font=("Helvetica", 16, "bold")).pack(pady=(25, 20), padx=25, anchor="w")
+
+        self.dark_mode_switch = ctk.CTkSwitch(self.sys_card, text="Enable Dark Mode Visualization", command=self.toggle_dark_mode)
+        self.dark_mode_switch.pack(pady=15, padx=25, anchor="w")
+
+        self.sync_btn = ctk.CTkButton(self.sys_card, text="Sync Database", width=200, fg_color="#3498db")
+        self.sync_btn.pack(pady=(20, 10), padx=25, anchor="w")
+
+        self.export_btn = ctk.CTkButton(self.sys_card, text="Export Settings", width=200, fg_color="#3498db")
+        self.export_btn.pack(pady=10, padx=25, anchor="w")
+
+
+
+    # Backend Integration Placeholder 
+    def save_fees_mock(self):
+        shopee_fee = self.shopee_entry.get()
+        tiktok_fee = self.tiktok_entry.get()
+        lazada_fee = self.lazada_entry.get()
+        
+        print(f"[DEBUG] Fees Updated - Shopee: {shopee_fee} | TikTok: {tiktok_fee} | Lazada: {lazada_fee}")
+        
+        # TODO: Connect to database function once backend is ready
+        # e.g., db.update_platform_fees(shopee_fee, tiktok_fee, lazada_fee)
 
     def toggle_dark_mode(self):
         if self.dark_mode_switch.get() == 1:
@@ -425,7 +629,7 @@ class HelpPage(BasePage):
         super().__init__(parent, controller, "Help & Support Center")
         
         # User manual textbox
-        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("SF Pro Display", 12))
+        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Helvetica", 12))
         help_text.pack(pady=10, padx=20, fill="both", expand=True)
         help_text.insert("0.0", "MEPIO SYSTEM DOCUMENTATION\n\n"
                                "1. DASHBOARD: View real-time profit and revenue metrics.\n"
