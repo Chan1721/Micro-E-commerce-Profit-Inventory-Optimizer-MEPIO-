@@ -125,16 +125,22 @@ class InventoryPage(ctk.CTkFrame):
 
     def erase_item(self, item_name, quantity):
         if item_name in self.stock:
-            if self.stock[item_name] >= quantity:
-                self.stock[item_name] -= quantity
-                if self.stock[item_name] == 0:
-                    del self.stock[item_name]
+            current_qty = self.stock[item_name]
+
+            if quantity > current_qty:
+                messagebox.showerror("Error", f"Cannot remove {quantity}. Only {current_qty} in stock.")
+                return
+            
+            new_qty = current_qty - quantity
+            self.stock[item_name] = new_qty
+            if new_qty == 0:
+                del self.stock[item_name]
 
             # Update Database
             self.cursor.execute(
                 """UPDATE inventory SET local_stock = local_stock - ?
                 WHERE product_name = ?""",
-                (quantity, item_name)
+                (new_qty, item_name)
             )
             self.conn.commit()
         self.refresh_stock()
