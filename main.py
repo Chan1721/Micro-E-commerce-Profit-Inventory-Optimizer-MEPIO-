@@ -728,38 +728,16 @@ class HelpPage(BasePage):
 
 class OrderPage(BasePage):
     def __init__(self, parent, controller):
-        """
-        Initializes the Dedicated Multi-Platform Order Aggregation Page.
-        Consolidates live order streams from Shopee, Lazada, and TikTok into a single view.
-        Fully compatible with adaptive Light/Dark mode switching.
-        """
-        super().__init__(parent, controller, "Multi-Platform Orders")
-
+        super().__init__(parent, controller, "Multi-Platform Orders Stream")
+        
         # --- Theme Adaptive Colors ---
-        self.bg_side_panel = ("#F8FAFC", "#1E1E1E")
         self.bg_card_inner = ("#FFFFFF", "#252525")
         self.bg_row_even = ("#F1F5F9", "#1D1E1F")
         self.text_main = ("#1E293B", "#F1F5F9")
         self.text_sub = ("#64748B", "#94A3B8")
 
-        # --- Main Container Split Layout ---
-        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
-
-        # =========================================================================
-        # CONTAINER: CENTRALIZED ORDER STREAM TABLE
-        # =========================================================================
-        # We use a scrollable frame to act as the central datagrid for orders
-        self.order_table_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=12, fg_color=self.bg_card_inner)
-        self.order_table_frame.pack(fill="both", expand=True, pady=10, padx=5)
-
-        # Header Title with a sync theme color to look highly professional
-        ctk.CTkLabel(self.order_table_frame, text="🔄 Centralized Multi-Platform Order Stream", 
-                     font=("Arial", 15, "bold"), text_color="#3498db").pack(pady=(15, 10), anchor="w", padx=20)
-
-        # Mock Orders Database Template
-        # Structure: (Platform Channel, Order ID, Item Details, Total Value, Order Status, Status Color Layer)
-        aggregated_orders_mock = [
+        # --- Mock Database Template ---
+        self.all_orders_mock = [
             ("Shopee MY", "SHP-20260525-091", "Matte Lipstick [LIP-001] x2", "RM 30.00", "To Ship", "#e67e22"),
             ("TikTok Shop", "TT-992314-MX", "Waterproof Mascara [MAS-002] x1", "RM 18.25", "To Ship", "#e67e22"),
             ("Lazada MY", "LZD-77621-PL", "EyeLiner [EYE-003] x1", "RM 10.00", "Completed", "#27ae60"),
@@ -768,25 +746,126 @@ class OrderPage(BasePage):
             ("Lazada MY", "LZD-77625-AS", "Waterproof Mascara [MAS-002] x2", "RM 36.50", "To Ship", "#e67e22")
         ]
 
-        # Render the custom rows inside the table grid container layout dynamically
-        for platform, order_id, items, value, status, status_color in aggregated_orders_mock:
+        # Currently selected platform filter condition (Defaults to "All")
+        self.current_platform_filter = "All"
+
+        # --- Main Layout Framework ---
+        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # =========================================================================
+        # 1. TOP FILTER BAR (Platform Categories & Sub-navigation)
+        # =========================================================================
+        self.filter_bar = ctk.CTkFrame(self.main_container, fg_color=self.bg_card_inner, corner_radius=12)
+        self.filter_bar.pack(fill="x", pady=(0, 10))
+
+        # Platform Navigation Label
+        lbl_filter_title = ctk.CTkLabel(self.filter_bar, text="Platform Channel:", font=("Arial", 12, "bold"), text_color=self.text_main)
+        lbl_filter_title.pack(side="left", padx=(20, 10), pady=15)
+
+        platforms = ["All", "Shopee", "TikTok", "Lazada"]
+        self.tab_buttons = {}
+        for p in platforms:
+            # Using custom button styles to simulate tab switching behaviors
+            btn = ctk.CTkButton(
+                self.filter_bar, text=p, width=80, height=28,
+                fg_color="#3498db" if p == "All" else "transparent", # Highlight "All" by default
+                text_color="white" if p == "All" else self.text_main,
+                border_width=1 if p != "All" else 0,
+                border_color="#3498db",
+                command=lambda choice=p: self.filter_by_platform(choice)
+            )
+            btn.pack(side="left", padx=5)
+            self.tab_buttons[p] = btn
+
+        # =========================================================================
+        # 2. LIST METADATA & ANNOTATION (System Notices & Metrics Units)
+        # =========================================================================
+        self.meta_info_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        self.meta_info_frame.pack(fill="x", pady=(5, 0))
+
+        # Left Side: System/Sync Annotations
+        lbl_notice = ctk.CTkLabel(
+            self.meta_info_frame, 
+            text="* Annotation: Order stream auto-syncs every 5 mins via API handshake protocol. Statuses aligned to standard ERP nodes.", 
+            font=("Arial", 11, "italic"), 
+            text_color="#e67e22"
+        )
+        lbl_notice.pack(side="left", padx=5)
+
+        # Right Side: Financial & Quantity Units
+        lbl_unit = ctk.CTkLabel(
+            self.meta_info_frame, 
+            text="Unit: Gross Revenue (RM) | Quantity (Pcs)", 
+            font=("Arial", 11, "bold"), 
+            text_color=self.text_sub
+        )
+        lbl_unit.pack(side="right", padx=5)
+
+        # =========================================================================
+        # 3. CENTRAL DATAGRID (Centralized Order Stream Table Frame)
+        # =========================================================================
+        # Table Header Row
+        self.table_header = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        self.table_header.pack(fill="x", pady=(15, 0), padx=25)
+
+        ctk.CTkLabel(self.table_header, text="Platform", font=("Arial", 11, "bold"), text_color=self.text_sub, width=100, anchor="w").pack(side="left")
+        ctk.CTkLabel(self.table_header, text="Order Credentials & Items", font=("Arial", 11, "bold"), text_color=self.text_sub, anchor="w").pack(side="left", padx=15)
+        ctk.CTkLabel(self.table_header, text="Status", font=("Arial", 11, "bold"), text_color=self.text_sub, width=80, anchor="center").pack(side="right", padx=15)
+        ctk.CTkLabel(self.table_header, text="Order Value", font=("Arial", 11, "bold"), text_color=self.text_sub, width=80, anchor="e").pack(side="right", padx=15)
+
+        # Scrollable Data Container
+        self.order_table_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=12, fg_color=self.bg_card_inner)
+        self.order_table_frame.pack(fill="both", expand=True, pady=(5, 10), padx=5)
+
+        # First-time list data rendering
+        self.render_filtered_list()
+
+    def filter_by_platform(self, selected_platform):
+        """Click handler for platform filter buttons, updates the current filter condition and triggers list re-rendering with proper button state management."""
+        self.current_platform_filter = selected_platform
+        
+        # Dynamically switch the button active styling states
+        for p, btn in self.tab_buttons.items():
+            if p == selected_platform:
+                btn.configure(fg_color="#3498db", text_color="white", border_width=0)
+            else:
+                btn.configure(fg_color="transparent", text_color=self.text_main, border_width=1)
+        self.render_filtered_list()
+
+    def render_filtered_list(self):
+        """Dynamically renders the order list based on the current platform filter condition, with proper clearing and re-rendering logic."""
+        # 1. Clear existing row widgets before re-rendering to prevent UI duplication anomalies
+        for widget in self.order_table_frame.winfo_children():
+            # Keep the centralized title intact and only clear row entries
+            if isinstance(widget, ctk.CTkLabel) and "Centralized" in widget.cget("text"):
+                continue
+            widget.destroy()
+
+        # 2. Dynamically process and render dataset records matching the active filter criteria
+        for platform, order_id, items, value, status, status_color in self.all_orders_mock:
+            
+            # If selected platform filter is not "All" and the current order's platform does not match the filter, skip rendering this order row
+            if self.current_platform_filter != "All" and self.current_platform_filter not in platform:
+                continue
+
             row = ctk.CTkFrame(self.order_table_frame, fg_color=self.bg_row_even, corner_radius=8)
             row.pack(fill="x", padx=20, pady=5)
 
-            # Left Section: Branding channel label identifiers
+            # Platform display segment
             p_color = "#ff4500" if "Shopee" in platform else ("#111111", "#ffffff") if "TikTok" in platform else "#000080"
             lbl_platform = ctk.CTkLabel(row, text=f"[{platform}]", font=("Arial", 11, "bold"), text_color=p_color, width=100, anchor="w")
             lbl_platform.pack(side="left", padx=(15, 5), pady=8)
 
-            # Middle Section: Order Reference Code credentials & Product Meta description
+            # Order information detail credentials segment
             lbl_details = ctk.CTkLabel(row, text=f"ID: {order_id}   |   {items}", font=("Arial", 12), text_color=self.text_main, anchor="w")
             lbl_details.pack(side="left", padx=15)
 
-            # Right Section: Status Pill Badge Accent Layer
+            # Execution status badge pill capsule segment
             lbl_status = ctk.CTkLabel(row, text=status, font=("Arial", 10, "bold"), text_color="white", fg_color=status_color, corner_radius=5, width=80)
             lbl_status.pack(side="right", padx=15)
 
-            # Right Section: Financial transaction cost statement
+            # Transaction numeric amount value segment
             lbl_value = ctk.CTkLabel(row, text=value, font=("Arial", 12, "bold"), text_color=self.text_main, width=80, anchor="e")
             lbl_value.pack(side="right", padx=15)
 
