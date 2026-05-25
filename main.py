@@ -49,6 +49,7 @@ class MEPIOApp(ctk.CTk):
         # Navigation items mapping[cite: 1]
         nav_items = [
             (" Dashboard", "dash"),
+            ("Orders", "orders"),
             (" Inventory", "inv"),
             (" Logistics", "logistics"),
             (" Calculator", "calculator"),
