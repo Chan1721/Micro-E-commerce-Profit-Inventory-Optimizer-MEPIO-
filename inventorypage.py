@@ -40,7 +40,7 @@ class InventoryPage(ctk.CTkFrame):
         self.entry_code.grid(row=0, column=2, padx=15, pady=10)
 
         # Bind key release event to trigger autocomplete
-        self.entry_code.bind("<FocusIn>", lambda e: self.show_code_dropdown())
+        self.entry_code.bind("<KeyRelease>", self.show_code_suggestions)
 
         ctk.CTkLabel(input_frame, text = "Quantity", font = ("Arial", 13)). grid(row = 1, column = 0, padx = 15, pady = 10, sticky = "w")
         self.entry_qty = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
@@ -113,8 +113,14 @@ class InventoryPage(ctk.CTkFrame):
             self.stock[code] = {"name": name, "qty": qty, "threshold": 5}
         self.refresh_stock()
 
-    def add_item(self, code, name, quantity, threshold = 5):
-        self.stock[code] = {"name": name, "qty": quantity, "threshold": threshold}
+    def add_item(self, code, name, quantity, threshold=5):
+        if code in self.stock:
+            # Increment existing quantity
+            self.stock[code]["qty"] += quantity
+        else:
+            # Create new entry
+            self.stock[code] = {"name": name, "qty": quantity, "threshold": threshold}
+
         self.refresh_stock()
 
         # Save to Database
@@ -127,6 +133,7 @@ class InventoryPage(ctk.CTkFrame):
         self.conn.commit()
         self.refresh_stock()
 
+
     def erase_item(self, code, quantity):
         if code in self.stock:
             current_qty = self.stock[code]["qty"]
@@ -134,13 +141,13 @@ class InventoryPage(ctk.CTkFrame):
             if quantity > current_qty:
                 messagebox.showerror("Error", f"Cannot remove {quantity}. Only {current_qty} in stock.")
                 return
-            
+
             new_qty = current_qty - quantity
             self.stock[code]["qty"] = new_qty
             if new_qty == 0:
                 del self.stock[code]
 
-            # Update Database
+            # Update Database by SKU
             self.cursor.execute(
                 """UPDATE inventory SET local_stock = local_stock - ?
                 WHERE sku = ?""",
@@ -149,21 +156,23 @@ class InventoryPage(ctk.CTkFrame):
             self.conn.commit()
         self.refresh_stock()
 
+
     def gui_add_item(self):
         item = self.entry_item.get().strip()
         code = self.entry_code.get().strip()
-        if not code:
-            messagebox.showerror("Error", "Item code can't be empty")
+        if not item or not code:
+            messagebox.showerror("Error", "Item name and code can't be empty")
             return
         try:
             qty = int(self.entry_qty.get())
             threshold = int(self.entry_threshold.get()) if self.entry_threshold.get() else 5
+            # Pass all required arguments: code, name, qty, threshold
             self.add_item(code, item, qty, threshold)
         except ValueError:
             messagebox.showerror("Error", "Quantity and threshold must be numbers")
 
     def gui_remove_item(self):
-        code = self.entry_item.get().strip()
+        code = self.entry_code.get().strip()
         if not code:
             messagebox.showerror("Error", "Item code cannot be empty")
             return
@@ -172,6 +181,7 @@ class InventoryPage(ctk.CTkFrame):
             self.erase_item(code, qty)
         except ValueError:
             messagebox.showerror("Error", "Quantity must be a number")
+
 
     def set_threshold(self):
         code = self.entry_code.get().strip()
@@ -232,9 +242,11 @@ class InventoryPage(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Error", f"Selection failed : {e}")
 
-    def show_code_suggestions(self, event):
+    def show_code_suggestions(self, event = None):
         typed = self.entry_code.get().strip()
         if not typed:
+            if hasattr(self, "code_dropdown"):
+                self.code_dropdown.destroy()
             return
     
         self.cursor.execute("SELECT sku FROM inventory WHERE sku LIKE ?", (typed + "%",))
@@ -244,11 +256,8 @@ class InventoryPage(ctk.CTkFrame):
             self.code_dropdown.destroy()
         
         if codes:
-            self.code_dropdown = tk.Listbox(self,height = 5)
-            for code in codes:
-                self.code_dropdown.insert(tk.END, code)
+            self.code_dropdown = ctk.CTkOptionMenu(self, values = codes, command = self.fill_code_entry)
             self.code_dropdown.pack(padx = 15, pady = 5)
-            self.code_dropdown.bind("<<ListboxSelect>>", self.fill_code_entry)
 
     def show_code_dropdown(self):
         self.cursor.execute("SELECT sku FROM inventory")
