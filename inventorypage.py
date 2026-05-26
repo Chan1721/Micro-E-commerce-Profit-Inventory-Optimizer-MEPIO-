@@ -36,6 +36,12 @@ class InventoryPage(ctk.CTkFrame):
         self.entry_item = ctk.CTkEntry(input_frame, placeholder_text= "Enter item name", width = 250)
         self.entry_item.grid(row = 0, column = 1, padx = 15, pady = 10)
 
+        self.entry_code = ctk.CTkEntry(input_frame, placeholder_text="Enter item code", width=250)
+        self.entry_code.grid(row=0, column=2, padx=15, pady=10)
+
+        # Bind key release event to trigger autocomplete
+        self.entry_code.bind("<KeyRelease>", self.show_code_suggestions)
+
         ctk.CTkLabel(input_frame, text = "Quantity", font = ("Arial", 13)). grid(row = 1, column = 0, padx = 15, pady = 10, sticky = "w")
         self.entry_qty = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
         self.entry_qty.grid(row = 1, column = 1, padx = 15, pady = 10)
@@ -90,10 +96,12 @@ class InventoryPage(ctk.CTkFrame):
             font = ("Consolas", 12),
             highlightthickness = 0, bd = 0
         )
+        self.stock_list.bind("<<ListboxSelect>>", self.on_item_select)
         self.stock_list.pack(pady = 10, padx = 10, fill = "both", expand = True)
 
         self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
         self.alert_label.pack(pady = 5)
+        self.alerted_items = set()
 
         # Load stock after stock_list exists to prevent bug
         self.load_stock_from_db()
@@ -101,16 +109,19 @@ class InventoryPage(ctk.CTkFrame):
     # main code
     # --- Database integration methods ---
     def load_stock_from_db(self):
-        self.cursor.execute("SELECT product_name, local_stock FROM inventory")
-        for item, qty in self.cursor.fetchall():
-            self.stock[item] = qty
-            self.thresholds[item] = 5
+        self.cursor.execute("SELECT sku, product_name, local_stock FROM inventory")
+        for code, name, qty in self.cursor.fetchall():
+            self.stock[code] = {"name": name, "qty": qty, "threshold": 5}
         self.refresh_stock()
 
+    def add_item(self, code, name, quantity, threshold=5):
+        if code in self.stock:
+            # Increment existing quantity
+            self.stock[code]["qty"] += quantity
+        else:
+            # Create new entry
+            self.stock[code] = {"name": name, "qty": quantity, "threshold": threshold}
 
-    def add_item(self, item_name, quantity, threshold = 5):
-        self.stock[item_name] = self.stock.get(item_name, 0) + quantity
-        self.thresholds[item_name] = threshold  # default threshold
         self.refresh_stock()
 
         # Save to Database
@@ -118,58 +129,69 @@ class InventoryPage(ctk.CTkFrame):
             """INSERT INTO inventory (sku, product_name, local_stock)
             VALUES (?, ?, ?)
             ON CONFLICT(sku) DO UPDATE SET local_stock = local_stock + excluded.local_stock""",
-            (item_name, item_name, quantity)
+            (code, name, quantity)
         )
         self.conn.commit()
         self.refresh_stock()
 
-    def erase_item(self, item_name, quantity):
-        if item_name in self.stock:
-            if self.stock[item_name] >= quantity:
-                self.stock[item_name] -= quantity
-                if self.stock[item_name] == 0:
-                    del self.stock[item_name]
 
-            # Update Database
+    def erase_item(self, code, quantity):
+        if code in self.stock:
+            current_qty = self.stock[code]["qty"]
+
+            if quantity > current_qty:
+                messagebox.showerror("Error", f"Cannot remove {quantity}. Only {current_qty} in stock.")
+                return
+
+            new_qty = current_qty - quantity
+            self.stock[code]["qty"] = new_qty
+            if new_qty == 0:
+                del self.stock[code]
+
+            # Update Database by SKU
             self.cursor.execute(
                 """UPDATE inventory SET local_stock = local_stock - ?
-                WHERE product_name = ?""",
-                (quantity, item_name)
+                WHERE sku = ?""",
+                (quantity, code)
             )
             self.conn.commit()
         self.refresh_stock()
 
+
     def gui_add_item(self):
         item = self.entry_item.get().strip()
-        if not item:
-            messagebox.showerror("Error", "Item name can't be empty")
+        code = self.entry_code.get().strip()
+        if not item or not code:
+            messagebox.showerror("Error", "Item name and code can't be empty")
             return
         try:
             qty = int(self.entry_qty.get())
             threshold = int(self.entry_threshold.get()) if self.entry_threshold.get() else 5
-            self.add_item(item, qty, threshold)
+            # Pass all required arguments: code, name, qty, threshold
+            self.add_item(code, item, qty, threshold)
         except ValueError:
             messagebox.showerror("Error", "Quantity and threshold must be numbers")
 
     def gui_remove_item(self):
-        item = self.entry_item.get().strip()
-        if not item:
-            messagebox.showerror("Error", "Item name cannot be empty")
+        code = self.entry_code.get().strip()
+        if not code:
+            messagebox.showerror("Error", "Item code cannot be empty")
             return
         try:
             qty = int(self.entry_qty.get())
-            self.erase_item(item, qty)
+            self.erase_item(code, qty)
         except ValueError:
             messagebox.showerror("Error", "Quantity must be a number")
 
+
     def set_threshold(self):
-        item = self.entry_item.get().strip()
-        if not item:
+        code = self.entry_code.get().strip()
+        if not code:
             messagebox.showerror("Error", "Enter an item name to set threshold")
             return
         try:
             value = int(self.entry_threshold.get())
-            self.thresholds[item] = value
+            self.thresholds[code]["threshold"] = value
             self.threshold_label.configure(text = f"Current Threshold: {value}")
             messagebox.showinfo("Threshold Updated", f"Low stock threshold set to {value}")
             self.refresh_stock()
@@ -184,24 +206,93 @@ class InventoryPage(ctk.CTkFrame):
     def refresh_stock(self):
         self.stock_list.delete(0, tk.END)
         low_items = []
-        for item, qty in self.stock.items():
-            threshold = self.thresholds.get(item, 5)
-            self.stock_list.insert(tk.END, f"· {item:<20} | {qty} (Threshold: {threshold})")
+        for code, data in self.stock.items():
+            name, qty, threshold = data["name"], data["qty"], data["threshold"]
+            self.stock_list.insert(tk.END, f"· {code} {name:<20} | {qty} (Threshold: {threshold})")
             if qty <= threshold:
-                low_items.append(f"{item} (≤ {threshold})")
+                low_items.append((code, name, threshold))
 
-        if low_items:
+        # Track new alerts for items that just went low
+        new_alerts = []
+        for code, name, threshold in low_items:
+            if code not in self.alerted_items:
+                new_alerts.append(f"{code} {name} (≤ {threshold})")
+                self.alerted_items.add(code)
+
+        # Show popup if any new item went low
+        if new_alerts:
             messagebox.showwarning(
-                "Low Stock Alert",
-                f"The following items are running low:\n{', '.join(low_items)}"
+                "Low Stock Alert", 
+                f"The following items are running low:\n{', '.join(new_alerts)}"
             )
+
+        # Update label with all currently low items
+        if low_items:
             self.alert_label.configure(
-                text = f"⚠️ Low stock alert: {', '.join(low_items)}"
+                text=f"⚠️ Low stock alert: {', '.join([f'{code} {name} (≤ {threshold})' for code, name, threshold in low_items])}"
             )
         else:
-            self.alert_label.configure(text = "")
+            self.alert_label.configure(text="")
+            # Reset alerts when everything recovers
+            self.alerted_items.clear()
 
+    def on_item_select(self, event):
+        try:
+            selection = self.stock_list.curselection()
+            if not selection:
+                return
+            index = selection[0]
+            line = self.stock_list.get(index)
 
+            parts = line.split("|")
+            code_and_name = parts[0].replace("·", "").strip()
+            code, name = code_and_name.split(" ", 1)
+
+            self.entry_code.delete(0, tk.END)
+            self.entry_code.insert(0, code)
+
+            self.entry_item.delete(0, tk.END)
+            self.entry_item.insert(0, name)
+        except Exception as e:
+            messagebox.showerror("Error", f"Selection failed : {e}")
+
+    def show_code_suggestions(self, event = None):
+        typed = self.entry_code.get().strip()
+        if not typed:
+            if hasattr(self, "code_dropdown"):
+                self.code_dropdown.destroy()
+            return
+    
+        self.cursor.execute("SELECT sku FROM inventory WHERE sku LIKE ?", (typed + "%",))
+        codes = [row[0] for row in self.cursor.fetchall()]
+
+        if hasattr(self, "code_dropdown"):
+            self.code_dropdown.destroy()
+        
+        if codes:
+            self.code_dropdown = ctk.CTkOptionMenu(self, values = codes, command = self.fill_code_entry)
+            self.code_dropdown.pack(padx = 15, pady = 5)
+
+    def show_code_dropdown(self):
+        self.cursor.execute("SELECT sku FROM inventory")
+        codes = [row[0] for row in self.cursor.fetchall()]
+
+        if hasattr(self, "code_dropdown"):
+            self.code_dropdown.destroy()
+        
+        if codes:
+            self.code_dropdown = ctk.CTkOptionMenu(self, values = codes, command = self.fill_code_entry)
+            self.code_dropdown.pack(padx = 15, pady = 5)
+
+    def fill_code_entry(self, selected_code):
+        self.entry_code.delete(0, tk.END)
+        self.entry_code.insert(0, selected_code)
+        self.cursor.execute("SELECT product_name FROM inventory WHERE sku = ?", (selected_code,))
+        result = self.cursor.fetchone()
+        if result:
+            self.entry_item.delete(0, tk.END)
+            self.entry_item.insert(0, result[0])
+    
 if __name__ == "__main__":
     app = MEPIOApp()
     def on_theme_change(event = None):
