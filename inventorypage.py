@@ -101,6 +101,7 @@ class InventoryPage(ctk.CTkFrame):
 
         self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
         self.alert_label.pack(pady = 5)
+        self.alert_shown = False
 
         # Load stock after stock_list exists to prevent bug
         self.load_stock_from_db()
@@ -211,7 +212,7 @@ class InventoryPage(ctk.CTkFrame):
             if qty <= threshold:
                 low_items.append(f"{name} (≤ {threshold})")
 
-        if low_items:
+        if low_items and not self.alert_shown:
             messagebox.showwarning(
                 "Low Stock Alert",
                 f"The following items are running low:\n{', '.join(low_items)}"
@@ -219,8 +220,10 @@ class InventoryPage(ctk.CTkFrame):
             self.alert_label.configure(
                 text = f"⚠️ Low stock alert: {', '.join(low_items)}"
             )
-        else:
+            self.alert_shown = True
+        elif not low_items:
             self.alert_label.configure(text = "")
+            self.alert_shown = False
 
     def on_item_select(self, event):
         try:
