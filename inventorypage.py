@@ -101,7 +101,7 @@ class InventoryPage(ctk.CTkFrame):
 
         self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
         self.alert_label.pack(pady = 5)
-        self.alert_shown = False
+        self.alerted_items = set()
 
         # Load stock after stock_list exists to prevent bug
         self.load_stock_from_db()
@@ -210,20 +210,31 @@ class InventoryPage(ctk.CTkFrame):
             name, qty, threshold = data["name"], data["qty"], data["threshold"]
             self.stock_list.insert(tk.END, f"· {code} {name:<20} | {qty} (Threshold: {threshold})")
             if qty <= threshold:
-                low_items.append(f"{name} (≤ {threshold})")
+                low_items.append((code, name, threshold))
 
-        if low_items and not self.alert_shown:
+        # Track new alerts for items that just went low
+        new_alerts = []
+        for code, name, threshold in low_items:
+            if code not in self.alerted_items:
+                new_alerts.append(f"{code} {name} (≤ {threshold})")
+                self.alerted_items.add(code)
+
+        # Show popup if any new item went low
+        if new_alerts:
             messagebox.showwarning(
-                "Low Stock Alert",
-                f"The following items are running low:\n{', '.join(low_items)}"
+                "Low Stock Alert", 
+                f"The following items are running low:\n{', '.join(new_alerts)}"
             )
+
+        # Update label with all currently low items
+        if low_items:
             self.alert_label.configure(
-                text = f"⚠️ Low stock alert: {', '.join(low_items)}"
+                text=f"⚠️ Low stock alert: {', '.join([f'{code} {name} (≤ {threshold})' for code, name, threshold in low_items])}"
             )
-            self.alert_shown = True
-        elif not low_items:
-            self.alert_label.configure(text = "")
-            self.alert_shown = False
+        else:
+            self.alert_label.configure(text="")
+            # Reset alerts when everything recovers
+            self.alerted_items.clear()
 
     def on_item_select(self, event):
         try:
