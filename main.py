@@ -460,10 +460,105 @@ class CalculatorPage(BasePage):
                     text="✅ Healthy Margin: This pricing setup efficiently covers fine packaging and provides strong commercial scale.",
                     text_color="#27ae60"
                 )
+
+            self.run_roi_benchmarking()    
             
         except ValueError:
             self.res_net_profit.configure(text="Invalid Input", text_color="#e74c3c")
 
+    def run_roi_benchmarking(self):
+        import sqlite3
+        import tkinter.messagebox as messagebox
+
+        try:
+            cost_str = self.entries["Cost Price (RM)"].get()
+            selling_str = self.entries["Selling Price (RM)"].get()
+
+            if not cost_str or not selling_str:
+                return
+            
+            cost = float(cost_str)
+            selling = float(selling_str)
+            if cost <= 0 or selling <= 0:
+                return
+            
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+
+            try:
+                cursor.execute("SELECT COUNT(*) FROM inventory")
+                item_count = cursor.fetchone()[0]
+            except sqlite3.OperationalError:
+                item_count = 0  
+            
+            if item_count == 0:
+                conn.close() 
+                self.lbl_insight.configure(
+                    text="⚠️ Benchmarking Unavailable! Please add initial items in Inventory first.",
+                    text_color="#C0392B"
+                )
+                return
+
+            cursor.execute("SELECT shopee_fee, tiktok_fee, lazada_fee FROM system_settings WHERE setting_id=1")
+            row = cursor.fetchone()
+            if row:
+                shopee_fee_pct, tiktok_fee_pct, lazada_fee_pct = row
+            else:
+                shopee_fee_pct, tiktok_fee_pct, lazada_fee_pct = 5.5, 3.2, 4.0    
+
+            conn.close()
+
+            shopee_fee_amt = selling * (shopee_fee_pct / 100)
+            tiktok_fee_amt = selling * (tiktok_fee_pct / 100)
+            lazada_fee_amt = selling * (lazada_fee_pct / 100)
+
+            try:
+                shipping = float(self.entries["Shipping Fee Paid by Seller (RM)"].get())
+            except:
+                shipping = 0.0
+                
+            try:
+                pkg_base = float(self.entries["Base Package Cost (RM)"].get())
+                labor = float(self.entries["Labor Cost per Item (RM)"].get())
+                buffer_cost = float(self.entries["Other Buffer Cost (RM)"].get())
+                total_pkg = pkg_base + labor + buffer_cost
+            except:
+                total_pkg = 0.20
+                
+            shopee_net = selling - cost - shipping - total_pkg - shopee_fee_amt
+            tiktok_net = selling - cost - shipping - total_pkg - tiktok_fee_amt
+            lazada_net = selling - cost - shipping - total_pkg - lazada_fee_amt
+
+            shopee_roi = (shopee_net / cost) * 100
+            tiktok_roi = (tiktok_net / cost) * 100
+            lazada_roi = (lazada_net / cost) * 100
+
+            rois = {"Shopee": shopee_roi, "TikTok Shop": tiktok_roi, "Lazada": lazada_roi}
+            best_platform = max(rois, key=rois.get)
+
+
+            first_insight = self.lbl_insight.cget("text")
+            
+            second_insight = (
+                f"📊 Live Benchmarking (DB Rates):\n"
+                f"• Shopee: {shopee_roi:.0f}% | TikTok: {tiktok_roi:.0f}% | Lazada: {lazada_roi:.0f}%\n"
+                f"💡 ADVICE: [{best_platform}] is the optimal platform."
+            )
+            
+            combined_insight = f"{first_insight}\n\n{second_insight}"
+            
+            self.lbl_insight.configure(
+                text=combined_insight, 
+                text_color="#1B4F72" #3498db for main text, #C0392B for warnings
+            )
+
+        except ValueError:
+            pass 
+        except Exception as e:
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Error", f"System Error: {e}")   
+            
+             
 class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):
         """Initializes the Advanced Restock Optimization Analytics Page with proper tuple bindings."""
