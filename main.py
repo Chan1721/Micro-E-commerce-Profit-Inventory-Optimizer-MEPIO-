@@ -9,6 +9,28 @@ ctk.set_appearance_mode("light")
 from inventorypage import InventoryPage
 
 class MEPIOApp(ctk.CTk):
+    def init_sync_database():
+        """Initializes local SQLite schema to support multi-channel account token mapping and state sync."""
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+        
+        # Table to store official seller API handshake connections
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS linked_accounts (
+                account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                platform TEXT NOT NULL,
+                shop_id TEXT NOT NULL UNIQUE,
+                auth_token TEXT NOT NULL,
+                sync_status TEXT DEFAULT 'Active',
+                last_synced TEXT DEFAULT 'Never'
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
+    # Invoke the storage schema setup upon script interpretation
+    init_sync_database()
+
     def __init__(self):
         super().__init__()
         self.title("MEPIO - Profit & Inventory Optimizer")
@@ -55,6 +77,7 @@ class MEPIOApp(ctk.CTk):
             (" Calculator", "calculator"),
             (" Analytics", "analytics"),
             (" Settings", "settings"),
+            (" Accounts", "accounts"),
             (" Help & Support", "help")
         ]
 
@@ -77,6 +100,7 @@ class MEPIOApp(ctk.CTk):
         self.pages["calculator"] = CalculatorPage(self, self)
         self.pages["analytics"] = AnalyticsPage(self, self)
         self.pages["settings"] = SettingsPage(self, self)
+        self.pages["accounts"] = AccountsPage(self, self)
         self.pages["help"] = HelpPage(self, self)
 
         # FIXED: Moved show_page down here so the self.pages dictionary exists before execution
@@ -145,7 +169,7 @@ class DashboardPage(BasePage):
         self.render_dashboard_chart()
 
     def on_page_show(self, event):
-        """当Dashboard页面重新显示时，刷新图表色彩匹配系统主题"""
+        """When the Dashboard page is shown, re-render the chart to ensure it reflects the current theme (dark/light) and any updated data."""
         if event.widget == self:
             self.render_dashboard_chart()
 
@@ -501,7 +525,7 @@ class AnalyticsPage(BasePage):
         self.execute_restock_analysis()
 
     def on_page_show(self, event):
-        """当用户通过侧边栏切入该页面时，该事件会完美触发。在这里重新捕获深色/浅色状态重绘图表。"""
+        """when the Analytics page is shown, re-run the analysis to refresh insights and charts with current input values"""
         if event.widget == self:
             self.execute_restock_analysis()
 
@@ -725,6 +749,142 @@ class OrderPage(BasePage):
 
             lbl_value = ctk.CTkLabel(row, text=value, font=("Arial", 12, "bold"), text_color=self.text_main, width=80, anchor="e")
             lbl_value.pack(side="right", padx=15)
+
+class AccountsPage(BasePage):
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+        self.bg_card = ("#FFFFFF", "#252525")
+        self.text_main = ("#1E293B", "#F1F5F9")
+        self.text_sub = ("#64748B", "#94A3B8")
+
+        # Main flexible layout layout split
+        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # --- UPPER SECTION: Quick Link Input Panel ---
+        self.link_panel = ctk.CTkFrame(self.main_container, fg_color=self.bg_card, corner_radius=12)
+        self.link_panel.pack(fill="x", pady=(0, 15), padx=5)
+
+        ctk.CTkLabel(self.link_panel, text="🔗 Link New Marketplace Channel", font=("Arial", 14, "bold"), text_color="#2ecc71").pack(anchor="w", padx=20, pady=(15, 5))
+        
+        input_row = ctk.CTkFrame(self.link_panel, fg_color="transparent")
+        input_row.pack(fill="x", padx=20, pady=(5, 15))
+
+        # Dropdown selection
+        self.opt_platform = ctk.CTkOptionMenu(input_row, values=["Shopee MY", "TikTok Shop", "Lazada MY"], width=130)
+        self.opt_platform.pack(side="left", padx=(0, 10))
+
+        # Shop ID entry
+        self.ent_shop_id = ctk.CTkEntry(input_row, placeholder_text="Merchant Shop ID (e.g., store_01)", width=200)
+        self.ent_shop_id.pack(side="left", padx=(0, 10))
+
+        # Secure Token entry
+        self.ent_token = ctk.CTkEntry(input_row, placeholder_text="API Access Token/Key", width=250, show="*")
+        self.ent_token.pack(side="left", padx=(0, 15))
+
+        # Submit Action Trigger
+        self.btn_bind = ctk.CTkButton(input_row, text="Authorize & Link", fg_color="#2ecc71", hover_color="#27ae60", font=("Arial", 12, "bold"), width=120, command=self.db_bind_account)
+        self.btn_bind.pack(side="left")
+
+        # --- LOWER SECTION: Active Handshakes Dashboard ---
+        ctk.CTkLabel(self.main_container, text="📜 Connected Channels & Sync Nodes", font=("Arial", 13, "bold"), text_color=self.text_main).pack(anchor="w", padx=5, pady=(5, 5))
+
+        self.scroll_table = ctk.CTkScrollableFrame(self.main_container, corner_radius=12, fg_color=self.bg_card)
+        self.scroll_table.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Initial render fetch from database storage layer
+        self.refresh_account_grid()
+
+    def on_page_show(self, event):
+        """Triggers dynamic database refetch whenever the user navigates into this tab viewpoint."""
+        if event.widget == self:
+            self.refresh_account_grid()
+
+    def refresh_account_grid(self):
+        """Clears the display viewport and rebuilds connected channel cards from SQLite."""
+        for child in self.scroll_table.winfo_children():
+            child.destroy()
+
+        # Connect to local state repository
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT account_id, platform, shop_id, sync_status, last_synced FROM linked_accounts")
+        records = cursor.fetchall()
+        conn.close()
+
+        if not records:
+            lbl_empty = ctk.CTkLabel(self.scroll_table, text="[ No active marketplace connections found. Use the panel above to pair your first channel. ]", text_color=self.text_sub, font=("Arial", 12, "italic"))
+            lbl_empty.pack(pady=40, expand=True)
+            return
+
+        # Render rows dynamically mirroring registered channel records
+        for account_id, platform, shop_id, status, last_sync in records:
+            row_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#F1F5F9", "#1D1E1F"), corner_radius=8)
+            row_frame.pack(fill="x", padx=15, pady=6)
+
+            # Left block: Channel specs info metadata details
+            p_color = "#ff4500" if "Shopee" in platform else ("#111111", "#ffffff") if "TikTok" in platform else "#000080"
+            lbl_plat = ctk.CTkLabel(row_frame, text=f"[{platform}]", font=("Arial", 12, "bold"), text_color=p_color, width=120, anchor="w")
+            lbl_plat.pack(side="left", padx=(15, 10), pady=12)
+
+            lbl_details = ctk.CTkLabel(row_frame, text=f"Shop ID: {shop_id}  |  Last Sync Activity: {last_sync}", font=("Arial", 12), text_color=self.text_main)
+            lbl_details.pack(side="left", padx=10)
+
+            # Right block: Control node handles (Status + Unlink action button)
+            btn_unlink = ctk.CTkButton(row_frame, text="⛔ Unlink / Disconnect", fg_color="#e74c3c", hover_color="#c0392b", font=("Arial", 11, "bold"), width=130, command=lambda aid=account_id: self.db_unlink_account(aid))
+            btn_unlink.pack(side="right", padx=15)
+
+            lbl_status = ctk.CTkLabel(row_frame, text=status, font=("Arial", 10, "bold"), text_color="white", fg_color="#27ae60", corner_radius=4, width=70)
+            lbl_status.pack(side="right", padx=10)
+
+    def db_bind_account(self):
+        """Pushes validated channel credentials securely into the sqlite storage structure."""
+        plat = self.opt_platform.get()
+        shop = self.ent_shop_id.get().strip()
+        tok = self.ent_token.get().strip()
+
+        import tkinter.messagebox as messagebox
+        import datetime
+
+        if not shop or not tok:
+            messagebox.showerror("Validation Failed", "Shop ID and API Authentication token entries are required fields!")
+            return
+
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO linked_accounts (platform, shop_id, auth_token, sync_status, last_synced) VALUES (?, ?, ?, 'Active', ?)",
+                (plat, shop, tok, current_time)
+            )
+            conn.commit()
+            conn.close()
+
+            # Wipe input text inputs upon registration success execution flow
+            self.ent_shop_id.delete(0, tk.END)
+            self.ent_token.delete(0, tk.END)
+
+            messagebox.showinfo("Handshake Complete", f"Successfully activated API synchronization gateway for {plat} [{shop}].")
+            self.refresh_account_grid()
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Duplication Alert", f"The Shop ID '{shop}' is already registered inside this MEPIO system core matrix.")
+        except Exception as e:
+            messagebox.showerror("Database Exception Error", f"Operation aborted due to storage constraint error: {e}")
+
+    def db_unlink_account(self, account_id):
+        """Deletes credentials row from system repository safely following user intent validation."""
+        import tkinter.messagebox as messagebox
+        
+        if messagebox.askyesno("Confirm Disconnect", "Are you absolutely sure you want to completely sever this API access link?\n\nThis will suspend automation sync threads immediately."):
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM linked_accounts WHERE account_id = ?", (account_id,))
+            conn.commit()
+            conn.close()
+
+            self.refresh_account_grid()
 
 if __name__ == "__main__":
     app = MEPIOApp()
