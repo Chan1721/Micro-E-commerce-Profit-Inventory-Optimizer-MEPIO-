@@ -108,6 +108,49 @@ def init_database():
     
     print("Database initialization successful! 'mepio_system.db' created.")
 
+    # =========================================================================
+    # 6. MARKETPLACE LINKED ACCOUNTS TABLE (OAuth 2.0 & Token Storage)
+    # =========================================================================
+    # Stores secured connection handshakes for connected Shopee, Lazada, or TikTok stores
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS linked_accounts (
+        account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        shop_id TEXT NOT NULL UNIQUE,
+        auth_token TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'Active',
+        last_synced TEXT DEFAULT 'Never'
+    )''')
+
+    # =========================================================================
+    # 7. MARKETPLACE ORDERS STREAM TABLE (Synchronized Order Feeds)
+    # =========================================================================
+    # Stores dynamic streaming sales records downloaded from active integrated shop channels
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS marketplace_orders (
+        order_id TEXT PRIMARY KEY,
+        platform TEXT NOT NULL,
+        shop_id TEXT NOT NULL,
+        items TEXT NOT NULL,
+        order_value TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_color TEXT NOT NULL
+    )''')
+
+    # =========================================================================
+    # 8. MARKETPLACE ONLINE INVENTORY TABLE (Multi-Store Stock Tracking)
+    # =========================================================================
+    # Mapped live product quantities synced across seller channels with low stock trigger lines
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS marketplace_inventory (
+        sku_id TEXT PRIMARY KEY,
+        product_name TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        shop_id TEXT NOT NULL,
+        stock_qty INTEGER NOT NULL,
+        safety_limit INTEGER DEFAULT 10
+    )''')
+
 # This conditional block ensures that the database initialization script runs 
 # only if this specific file is executed directly (not when imported as a module).
 if __name__ == "__main__":
