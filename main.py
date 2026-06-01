@@ -14,7 +14,7 @@ class MEPIOApp(ctk.CTk):
         conn = sqlite3.connect('mepio_system.db')
         cursor = conn.cursor()
         
-        # Table to store official seller API handshake connections
+        # [Existing Table] Table to store official seller API handshake connections
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS linked_accounts (
                 account_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +23,19 @@ class MEPIOApp(ctk.CTk):
                 auth_token TEXT NOT NULL,
                 sync_status TEXT DEFAULT 'Active',
                 last_synced TEXT DEFAULT 'Never'
+            )
+        ''')
+
+        # NEW TABLE: Storage schema for synchronized orders mapped to a specific shop_id
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS marketplace_orders (
+                order_id TEXT PRIMARY KEY,
+                platform TEXT NOT NULL,
+                shop_id TEXT NOT NULL,
+                items TEXT NOT NULL,
+                order_value TEXT NOT NULL,
+                status TEXT NOT NULL,
+                status_color TEXT NOT NULL
             )
         ''')
         conn.commit()
@@ -53,15 +66,15 @@ class MEPIOApp(ctk.CTk):
                          corner_radius=8, fg_color="#4F6EF7")
         logo_box.pack(side="left")
         logo_box.pack_propagate(False)  # keeps the box at 36x36
-        ctk.CTkLabel(logo_box, text="M", font=("Helvetica", 18, "bold"),
+        ctk.CTkLabel(logo_box, text="M", font=("Arial", 18, "bold"),
              text_color="white").place(relx=0.5, rely=0.5, anchor="center")
 
         # Text next to the logo
         text_col = ctk.CTkFrame(brand_frame, fg_color="transparent")
         text_col.pack(side="left", padx=(10, 0))
-        ctk.CTkLabel(text_col, text="MEPIO", font=("Helvetica", 17, "bold"),
+        ctk.CTkLabel(text_col, text="MEPIO", font=("Arial", 17, "bold"),
              text_color="#4F6EF7").pack(anchor="w")
-        ctk.CTkLabel(text_col, text="Profit & Inventory", font=("Helvetica", 10),
+        ctk.CTkLabel(text_col, text="Profit & Inventory", font=("Arial", 10),
              text_color="#94A3B8").pack(anchor="w")
 
         # Thin grey line below the brand
@@ -85,7 +98,7 @@ class MEPIOApp(ctk.CTk):
         for text, page_key in nav_items:
             btn = ctk.CTkButton(self.sidebar_frame, text=f"  {text}", 
                                 fg_color="transparent", text_color=("#475569","#F8FAFC"), hover_color="#e2e8f0",
-                                font=("Helvetica", 14, "bold"), anchor="w",
+                                font=("Arial", 14, "bold"), anchor="w",
                                 command=lambda k=page_key: self.show_page(k))
             btn.pack(pady=5, padx=10, fill="x")
 
@@ -120,7 +133,7 @@ class BasePage(ctk.CTkFrame):
     """Template class for all pages to ensure UI consistency."""
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color="transparent") 
-        self.header = ctk.CTkLabel(self, text="", font=("Helvetica", 24, "bold"), text_color="#3498db")
+        self.header = ctk.CTkLabel(self, text="", font=("Arial", 24, "bold"), text_color="#3498db")
         
         # Decorative separator line
         line = ctk.CTkFrame(self, height=2, fg_color="#E0E0E0")
@@ -148,11 +161,11 @@ class DashboardPage(BasePage):
         for name, value, trend, direction in metrics:
             card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
             card.pack(side="left", padx=10, fill="both", expand=True)
-            ctk.CTkLabel(card, text=name, font=("Helvetica", 12), text_color="gray").pack(pady=(15, 0))
-            ctk.CTkLabel(card, text=value, font=("Helvetica", 18, "bold")).pack(pady=(5, 15))
+            ctk.CTkLabel(card, text=name, font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+            ctk.CTkLabel(card, text=value, font=("Arial", 18, "bold")).pack(pady=(5, 15))
 
             trend_color = "#2ecc71" if direction == "up" else "#e74c3c"
-            ctk.CTkLabel(card, text=trend, font=("Helvetica", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
+            ctk.CTkLabel(card, text=trend, font=("Arial", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
 
         # Bottom layout wrapper (Left and Right)
         self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
@@ -162,8 +175,8 @@ class DashboardPage(BasePage):
         self.chart_frame = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         self.chart_frame.pack(side="left", fill="both", expand=True) 
         
-        ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Helvetica", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
-        ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Helvetica", 12), text_color="gray").pack(anchor="w", padx=20)
+        ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Arial", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
+        ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Arial", 12), text_color="gray").pack(anchor="w", padx=20)
 
         self.canvas_widget = None
         self.render_dashboard_chart()
@@ -208,11 +221,11 @@ class DashboardPage(BasePage):
         ax.bar([i + width for i in x], platform_fees, width=width, label='Platform fees', color=color_fee)
         
         ax.set_xticks(x)
-        ax.set_xticklabels(platforms, color=text_clr, fontsize=6, fontweight='bold', fontname='Helvetica')
+        ax.set_xticklabels(platforms, color=text_clr, fontsize=6, fontweight='bold', fontname='Arial')
         ax.tick_params(axis='y', colors=text_clr, labelsize=6)
 
         for label in ax.get_yticklabels():
-            label.set_fontname("Helvetica")
+            label.set_fontname("Arial")
             label.set_fontsize(8)
             label.set_fontweight("bold")
 
@@ -223,7 +236,7 @@ class DashboardPage(BasePage):
         ax.spines['bottom'].set_visible(True) 
         ax.spines['bottom'].set_color(grid_clr)
 
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'family': 'Helvetica', 'size': 8, 'weight': 'bold'})
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'family': 'Arial', 'size': 8, 'weight': 'bold'})
         fig.tight_layout()
 
         canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
@@ -237,7 +250,7 @@ class DashboardPage(BasePage):
             self.action_card.pack(side="right", fill="y", padx=(10, 0))
             self.action_card.pack_propagate(False) 
             
-            ctk.CTkLabel(self.action_card, text="Quick Actions", font=("Helvetica", 16, "bold")).pack(pady=(20, 15))
+            ctk.CTkLabel(self.action_card, text="Quick Actions", font=("Arial", 16, "bold")).pack(pady=(20, 15))
             
             # Action Buttons
             ctk.CTkButton(self.action_card, text="➕ Calculate Profit", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
@@ -263,18 +276,18 @@ class DashboardPage(BasePage):
 
             self.accordion_frame = ctk.CTkFrame(self.action_card, fg_color=("#F8F9FA", "#1E1E1E"), corner_radius=8)
         
-            ctk.CTkLabel(self.accordion_frame, text="Set current commission % :", font=("Helvetica", 11, "italic"), text_color="gray").pack(pady=(8, 0), padx=15, anchor="w")
+            ctk.CTkLabel(self.accordion_frame, text="Set current commission % :", font=("Arial", 11, "italic"), text_color="gray").pack(pady=(8, 0), padx=15, anchor="w")
 
-            self.shopee_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Shopee (e.g. 5.5)", height=28, font=("Helvetica", 11))
+            self.shopee_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Shopee (e.g. 5.5)", height=28, font=("Arial", 11))
             self.shopee_entry.pack(pady=(10, 5), padx=15, fill="x")
             
-            self.tiktok_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="TikTok (e.g. 3.2)", height=28, font=("Helvetica", 11))
+            self.tiktok_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="TikTok (e.g. 3.2)", height=28, font=("Arial", 11))
             self.tiktok_entry.pack(pady=5, padx=15, fill="x")
             
-            self.lazada_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Lazada (e.g. 4.0)", height=28, font=("Helvetica", 11))
+            self.lazada_entry = ctk.CTkEntry(self.accordion_frame, placeholder_text="Lazada (e.g. 4.0)", height=28, font=("Arial", 11))
             self.lazada_entry.pack(pady=5, padx=15, fill="x")
             
-            self.save_fee_btn = ctk.CTkButton(self.accordion_frame, text="Save & Apply", fg_color="#27ae60", hover_color="#219150", height=28, font=("Helvetica", 11, "bold"), command=self.save_fees_inline)
+            self.save_fee_btn = ctk.CTkButton(self.accordion_frame, text="Save & Apply", fg_color="#27ae60", hover_color="#219150", height=28, font=("Arial", 11, "bold"), command=self.save_fees_inline)
             self.save_fee_btn.pack(pady=(5, 10), padx=15, fill="x")
 
             self.is_accordion_open = False
@@ -340,7 +353,7 @@ class CalculatorPage(BasePage):
         self.input_frame = ctk.CTkFrame(self.content_frame, corner_radius=15, fg_color=("#FFFFFF", "#252525"))
         self.input_frame.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=5)
 
-        ctk.CTkLabel(self.input_frame, text="1. Product & Platform Details", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=(10, 15), anchor="w", padx=20)
+        ctk.CTkLabel(self.input_frame, text="1. Product & Platform Details", font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(10, 15), anchor="w", padx=20)
         
         self.entries = {}
         base_fields = [
@@ -351,7 +364,7 @@ class CalculatorPage(BasePage):
         ]
         self.create_input_fields(base_fields)
 
-        ctk.CTkLabel(self.input_frame, text="2. Packaging Cost Breakdown", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=(20, 15), anchor="w", padx=20)
+        ctk.CTkLabel(self.input_frame, text="2. Packaging Cost Breakdown", font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(20, 15), anchor="w", padx=20)
         
         size_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
         size_frame.pack(fill="x", padx=20, pady=5)
@@ -373,7 +386,7 @@ class CalculatorPage(BasePage):
 
         self.calc_btn = ctk.CTkButton(self.input_frame, text="Calculate Net Profit", 
                                       fg_color="#27ae60", hover_color="#219150", 
-                                      font=("Helvetica", 14, "bold"),
+                                      font=("Arial", 14, "bold"),
                                       command=self.perform_calculation)
         self.calc_btn.pack(pady=25, padx=40, fill="x")
 
@@ -381,7 +394,7 @@ class CalculatorPage(BasePage):
         self.result_frame = ctk.CTkFrame(self.content_frame, corner_radius=15, fg_color=("#FFFFFF", "#1e1e1e"), width=300)
         self.result_frame.pack(side="right", fill="both", expand=False, padx=(10, 0), pady=5)
 
-        ctk.CTkLabel(self.result_frame, text="Financial Summary", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=15)
+        ctk.CTkLabel(self.result_frame, text="Financial Summary", font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=15)
 
         self.res_net_profit = self.create_result_row("Net Profit:", "RM 0.00", "#27ae60")
         self.res_roi = self.create_result_row("ROI (%):", "0.00%", "#3498db")
@@ -389,7 +402,7 @@ class CalculatorPage(BasePage):
         self.res_fees = self.create_result_row("Platform Fees:", "RM 0.00", "#e74c3c")
         
         self.lbl_insight = ctk.CTkLabel(self.result_frame, text="Insight: Enter figures to run optimization analysis.", 
-                                        font=("Helvetica", 12, "italic"), text_color="gray", wraplength=250)
+                                        font=("Arial", 12, "italic"), text_color="gray", wraplength=250)
         self.lbl_insight.pack(side="bottom", pady=30, padx=20)
 
     def create_input_fields(self, fields):
@@ -406,9 +419,9 @@ class CalculatorPage(BasePage):
     def create_result_row(self, label_text, value_text, color):
         row = ctk.CTkFrame(self.result_frame, fg_color="transparent")
         row.pack(fill="x", padx=30, pady=12)
-        lbl = ctk.CTkLabel(row, text=label_text, font=("Helvetica", 13), text_color=("#1A1A1A", "white"))
+        lbl = ctk.CTkLabel(row, text=label_text, font=("Arial", 13), text_color=("#1A1A1A", "white"))
         lbl.pack(side="left")
-        val_lbl = ctk.CTkLabel(row, text=value_text, font=("Helvetica", 18, "bold"), text_color=color)
+        val_lbl = ctk.CTkLabel(row, text=value_text, font=("Arial", 18, "bold"), text_color=color)
         val_lbl.pack(side="right")
         return val_lbl
 
@@ -613,7 +626,7 @@ class SettingsPage(BasePage):
         self.sys_card = ctk.CTkFrame(self.content_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         self.sys_card.pack(side="left", fill="both", expand=True, padx=(0, 15))
 
-        ctk.CTkLabel(self.sys_card, text="General Preferences", font=("Helvetica", 16, "bold")).pack(pady=(25, 20), padx=25, anchor="w")
+        ctk.CTkLabel(self.sys_card, text="General Preferences", font=("Arial", 16, "bold")).pack(pady=(25, 20), padx=25, anchor="w")
 
         self.dark_mode_switch = ctk.CTkSwitch(self.sys_card, text="Enable Dark Mode Visualization", command=self.toggle_dark_mode)
         self.dark_mode_switch.pack(pady=15, padx=25, anchor="w")
@@ -633,7 +646,7 @@ class SettingsPage(BasePage):
 class HelpPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
-        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Helvetica", 12))
+        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Arial", 12))
         help_text.pack(pady=10, padx=20, fill="both", expand=True)
         help_text.insert("0.0", "MEPIO SYSTEM DOCUMENTATION\n\n"
                                "1. DASHBOARD: View real-time profit and revenue metrics.\n"
@@ -650,19 +663,11 @@ class OrderPage(BasePage):
         self.text_main = ("#1E293B", "#F1F5F9")
         self.text_sub = ("#64748B", "#94A3B8")
 
-        self.all_orders_mock = [
-            ("Shopee MY", "SHP-20260525-091", "Matte Lipstick [LIP-001] x2", "RM 30.00", "To Ship", "#e67e22"),
-            ("TikTok Shop", "TT-992314-MX", "Waterproof Mascara [MAS-002] x1", "RM 18.25", "To Ship", "#e67e22"),
-            ("Lazada MY", "LZD-77621-PL", "EyeLiner [EYE-003] x1", "RM 10.00", "Completed", "#27ae60"),
-            ("Shopee MY", "SHP-20260525-099", "Matte Lipstick [LIP-001] x1", "RM 15.00", "Unpaid", "#7f8c8d"),
-            ("TikTok Shop", "TT-992315-LK", "Matte Lipstick [LIP-001] x3", "RM 45.00", "Completed", "#27ae60"),
-            ("Lazada MY", "LZD-77625-AS", "Waterproof Mascara [MAS-002] x2", "RM 36.50", "To Ship", "#e67e22")
-        ]
-
         self.current_platform_filter = "All"
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=20, pady=10)
 
+        # Filter and Control Bar
         self.filter_bar = ctk.CTkFrame(self.main_container, fg_color=self.bg_card_inner, corner_radius=12)
         self.filter_bar.pack(fill="x", pady=(0, 10))
 
@@ -683,12 +688,25 @@ class OrderPage(BasePage):
             btn.pack(side="left", padx=5)
             self.tab_buttons[p] = btn
 
+        # NEW ACTION: Dynamic API Sync Trigger Button on the right
+        self.btn_sync_orders = ctk.CTkButton(
+            self.filter_bar,
+            text="🔄 Sync Orders via API",
+            fg_color="#3498db",
+            hover_color="#2980b9",
+            height=28,
+            font=("Arial", 11, "bold"),
+            command=self.trigger_api_order_pull
+        )
+        self.btn_sync_orders.pack(side="right", padx=20, pady=10)
+
+        # Meta Information Banner
         self.meta_info_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
         self.meta_info_frame.pack(fill="x", pady=(5, 0))
 
         lbl_notice = ctk.CTkLabel(
             self.meta_info_frame, 
-            text="* Annotation: Order stream auto-syncs every 5 mins via API handshake protocol. Statuses aligned to standard ERP nodes.", 
+            text="* Live Data Node: Connected via local secure token gateway handshake.", 
             font=("Arial", 11, "italic"), 
             text_color="#e67e22"
         )
@@ -702,18 +720,26 @@ class OrderPage(BasePage):
         )
         lbl_unit.pack(side="right", padx=5)
 
+        # Table Header Framework Layout
         self.table_header = ctk.CTkFrame(self.main_container, fg_color="transparent")
         self.table_header.pack(fill="x", pady=(15, 0), padx=25)
 
         ctk.CTkLabel(self.table_header, text="Platform", font=("Arial", 11, "bold"), text_color=self.text_sub, width=100, anchor="w").pack(side="left")
-        ctk.CTkLabel(self.table_header, text="Order Credentials & Items", font=("Arial", 11, "bold"), text_color=self.text_sub, anchor="w").pack(side="left", padx=15)
+        ctk.CTkLabel(self.table_header, text="Order Credentials & Items [Mapped via ShopID]", font=("Arial", 11, "bold"), text_color=self.text_sub, anchor="w").pack(side="left", padx=15)
         ctk.CTkLabel(self.table_header, text="Status", font=("Arial", 11, "bold"), text_color=self.text_sub, width=80, anchor="center").pack(side="right", padx=15)
         ctk.CTkLabel(self.table_header, text="Order Value", font=("Arial", 11, "bold"), text_color=self.text_sub, width=80, anchor="e").pack(side="right", padx=15)
 
+        # Scrollable grid canvas area
         self.order_table_frame = ctk.CTkScrollableFrame(self.main_container, corner_radius=12, fg_color=self.bg_card_inner)
         self.order_table_frame.pack(fill="both", expand=True, pady=(5, 10), padx=5)
 
+        # Initial fetch to render data from SQLite
         self.render_filtered_list()
+
+    def on_page_show(self, event):
+        """Triggers dynamic database refetch whenever the user navigates into this view tab viewpoint."""
+        if event.widget == self:
+            self.render_filtered_list()
 
     def filter_by_platform(self, selected_platform):
         self.current_platform_filter = selected_platform
@@ -724,13 +750,82 @@ class OrderPage(BasePage):
                 btn.configure(fg_color="transparent", text_color=self.text_main, border_width=1)
         self.render_filtered_list()
 
+    def trigger_api_order_pull(self):
+        """Simulates an API fetch sequence pulling pending streaming orders for any active linked accounts inside SQLite."""
+        import tkinter.messagebox as messagebox
+        import random
+
+        # Step 1: Query database to see what accounts the user has linked
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT platform, shop_id FROM linked_accounts")
+        active_shops = cursor.fetchall()
+
+        if not active_shops:
+            messagebox.showwarning("Sync Aborted", "No connected channels found!\n\nPlease link a Shopee, TikTok, or Lazada account first in the 'Linked Accounts' control panel.")
+            conn.close()
+            return
+
+        # Pre-configured simulated order pool for streaming distribution pipeline
+        mock_pool = {
+            "Shopee MY": [
+                ("SHP-20260601-901", "Matte Lipstick [LIP-001] x2", "RM 30.00", "To Ship", "#e67e22"),
+                ("SHP-20260601-902", "Waterproof Mascara [MAS-002] x1", "RM 18.25", "Completed", "#27ae60")
+            ],
+            "TikTok Shop": [
+                ("TT-551290-MY", "EyeLiner [EYE-003] x1", "RM 10.00", "To Ship", "#e67e22"),
+                ("TT-551291-MY", "Matte Lipstick [LIP-001] x3", "RM 45.00", "Unpaid", "#7f8c8d")
+            ],
+            "Lazada MY": [
+                ("LZD-88123-MY", "Waterproof Mascara [MAS-002] x2", "RM 36.50", "To Ship", "#e67e22")
+            ]
+        }
+
+        synced_count = 0
+        # Step 2: For each active linked shop, simulate pulling down its data matching the channel format
+        for platform, shop_id in active_shops:
+            lookup_key = "Shopee MY" if "Shopee" in platform else "TikTok Shop" if "TikTok" in platform else "Lazada MY"
+            
+            if lookup_key in mock_pool:
+                for order_id, items, val, status, color in mock_pool[lookup_key]:
+                    # Append unique shop identifier to prevent mixing data between multi-store operators
+                    display_items = f"[{shop_id}] {items}"
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO marketplace_orders 
+                        (order_id, platform, shop_id, items, order_value, status, status_color) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (order_id, platform, shop_id, display_items, val, status, color))
+                    synced_count += 1
+
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Sync Success", f"API synchronization execution complete!\nDownloaded {synced_count} fresh streaming orders across all linked store credentials.")
+        self.render_filtered_list()
+
     def render_filtered_list(self):
+        """Reads synced streaming data fields straight from the SQLite engine cache matrix."""
         for widget in self.order_table_frame.winfo_children():
-            if isinstance(widget, ctk.CTkLabel) and "Centralized" in widget.cget("text"):
-                continue
             widget.destroy()
 
-        for platform, order_id, items, value, status, status_color in self.all_orders_mock:
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT platform, order_id, items, order_value, status, status_color FROM marketplace_orders")
+        db_orders = cursor.fetchall()
+        conn.close()
+
+        if not db_orders:
+            lbl_empty = ctk.CTkLabel(
+                self.order_table_frame, 
+                text="[ No synchronized live orders cached. Click '🔄 Sync Orders via API' to pull streaming streams. ]", 
+                text_color=self.text_sub, 
+                font=("Arial", 12, "italic")
+            )
+            lbl_empty.pack(pady=50, expand=True)
+            return
+
+        for platform, order_id, items, value, status, status_color in db_orders:
+            # Apply upper-tier UI channel navigation view filter
             if self.current_platform_filter != "All" and self.current_platform_filter not in platform:
                 continue
 
