@@ -39,8 +39,16 @@ class InventoryPage(ctk.CTkFrame):
         self.entry_code = ctk.CTkEntry(input_frame, placeholder_text="Enter item code", width=250)
         self.entry_code.grid(row=0, column=2, padx=15, pady=10)
 
-        # Bind key release event to trigger autocomplete
+        # Bind key release events to trigger autocomplete dropdowns
         self.entry_code.bind("<KeyRelease>", self.show_code_suggestions)
+        self.entry_code.bind("<FocusOut>", lambda e: self.after(150, self.hide_code_dropdown))
+
+        self.entry_item.bind("<KeyRelease>", self.show_name_suggestions)
+        self.entry_item.bind("<FocusOut>", lambda e: self.after(150, self.hide_name_dropdown))
+
+        # Floating dropdown windows (initialized as None)
+        self._code_dropdown_win = None
+        self._name_dropdown_win = None
 
         ctk.CTkLabel(input_frame, text = "Quantity", font = ("Arial", 13)). grid(row = 1, column = 0, padx = 15, pady = 10, sticky = "w")
         self.entry_qty = ctk.CTkEntry(input_frame, placeholder_text= "Enter quantity", width = 250)
@@ -256,42 +264,123 @@ class InventoryPage(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Error", f"Selection failed : {e}")
 
-    def show_code_suggestions(self, event = None):
+    # ── Autocomplete helpers ────────────────────────────────────────────────
+
+    def _make_dropdown(self, entry_widget, items, on_select_cb):
+        """Create a floating Toplevel listbox anchored below entry_widget."""
+        win = tk.Toplevel(self)
+        win.wm_overrideredirect(True)          # no title bar / border
+        win.attributes("-topmost", True)
+
+        # Position directly below the entry field
+        entry_widget.update_idletasks()
+        x = entry_widget.winfo_rootx()
+        y = entry_widget.winfo_rooty() + entry_widget.winfo_height()
+        width = entry_widget.winfo_width()
+
+        listbox = tk.Listbox(
+            win,
+            font=("Consolas", 11),
+            bg="#ffffff", fg="#2c3e50",
+            selectbackground="#3498db", selectforeground="white",
+            highlightthickness=1, highlightcolor="#3498db",
+            bd=0, relief="flat",
+            activestyle="none",
+        )
+        listbox.pack(fill="both", expand=True)
+
+        for item in items:
+            listbox.insert(tk.END, item)
+
+        # Auto-size height (max 6 rows)
+        row_height = 20
+        visible = min(len(items), 6)
+        win.geometry(f"{width}x{visible * row_height + 4}+{x}+{y}")
+
+        listbox.bind("<ButtonRelease-1>", lambda e: on_select_cb(listbox.get(listbox.curselection())))
+        listbox.bind("<Return>",          lambda e: on_select_cb(listbox.get(listbox.curselection())))
+
+        return win
+
+    # ── SKU code dropdown ───────────────────────────────────────────────────
+
+    def show_code_suggestions(self, event=None):
         typed = self.entry_code.get().strip()
-        if not typed:
-            if hasattr(self, "code_dropdown"):
-                self.code_dropdown.destroy()
+        self.hide_code_dropdown()
+
+        query = "%" + typed + "%" if typed else "%"
+        self.cursor.execute(
+            "SELECT sku FROM inventory WHERE sku LIKE ? LIMIT 10", (query,)
+        )
+        codes = [row[0] for row in self.cursor.fetchall()]
+        if not codes:
             return
-    
-        self.cursor.execute("SELECT sku FROM inventory WHERE sku LIKE ?", (typed + "%",))
-        codes = [row[0] for row in self.cursor.fetchall()]
 
-        if hasattr(self, "code_dropdown"):
-            self.code_dropdown.destroy()
-        
-        if codes:
-            self.code_dropdown = ctk.CTkOptionMenu(self, values = codes, command = self.fill_code_entry)
-            self.code_dropdown.pack(padx = 15, pady = 5)
+        self._code_dropdown_win = self._make_dropdown(
+            self.entry_code, codes, self._select_code
+        )
 
-    def show_code_dropdown(self):
-        self.cursor.execute("SELECT sku FROM inventory")
-        codes = [row[0] for row in self.cursor.fetchall()]
+    def hide_code_dropdown(self):
+        if self._code_dropdown_win:
+            self._code_dropdown_win.destroy()
+            self._code_dropdown_win = None
 
-        if hasattr(self, "code_dropdown"):
-            self.code_dropdown.destroy()
-        
-        if codes:
-            self.code_dropdown = ctk.CTkOptionMenu(self, values = codes, command = self.fill_code_entry)
-            self.code_dropdown.pack(padx = 15, pady = 5)
-
-    def fill_code_entry(self, selected_code):
+    def _select_code(self, selected_code):
+        self.hide_code_dropdown()
         self.entry_code.delete(0, tk.END)
         self.entry_code.insert(0, selected_code)
-        self.cursor.execute("SELECT product_name FROM inventory WHERE sku = ?", (selected_code,))
+        # Auto-fill item name
+        self.cursor.execute(
+            "SELECT product_name FROM inventory WHERE sku = ?", (selected_code,)
+        )
         result = self.cursor.fetchone()
         if result:
             self.entry_item.delete(0, tk.END)
             self.entry_item.insert(0, result[0])
+
+    # ── Item name dropdown ──────────────────────────────────────────────────
+
+    def show_name_suggestions(self, event=None):
+        typed = self.entry_item.get().strip()
+        self.hide_name_dropdown()
+
+        query = "%" + typed + "%" if typed else "%"
+        self.cursor.execute(
+            "SELECT product_name, sku FROM inventory WHERE product_name LIKE ? LIMIT 10",
+            (query,)
+        )
+        rows = self.cursor.fetchall()
+        if not rows:
+            return
+
+        display_items = [f"{name}  [{sku}]" for name, sku in rows]
+        self._name_rows = rows   # store for lookup on select
+
+        self._name_dropdown_win = self._make_dropdown(
+            self.entry_item, display_items, self._select_name
+        )
+
+    def hide_name_dropdown(self):
+        if self._name_dropdown_win:
+            self._name_dropdown_win.destroy()
+            self._name_dropdown_win = None
+
+    def _select_name(self, selected_display):
+        self.hide_name_dropdown()
+        # Parse name and sku back out of "name  [sku]"
+        try:
+            name, rest = selected_display.rsplit("  [", 1)
+            sku = rest.rstrip("]")
+        except ValueError:
+            return
+        self.entry_item.delete(0, tk.END)
+        self.entry_item.insert(0, name)
+        self.entry_code.delete(0, tk.END)
+        self.entry_code.insert(0, sku)
+
+    # Legacy fill helper (kept for compatibility)
+    def fill_code_entry(self, selected_code):
+        self._select_code(selected_code)
     
 if __name__ == "__main__":
     app = MEPIOApp()
