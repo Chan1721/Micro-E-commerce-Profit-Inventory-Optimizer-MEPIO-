@@ -109,7 +109,9 @@ class InventoryPage(ctk.CTkFrame):
 
         self.alert_label = ctk.CTkLabel(self, text = "", font = ("Arial", 13), text_color = "red")
         self.alert_label.pack(pady = 5)
-        self.alerted_items = set()
+        # Per-item alert state: True = alert already shown for current low episode.
+        # Resets to False only when that specific item's stock rises above its threshold.
+        self.alerted_items = {}
 
         # Load stock after stock_list exists to prevent bug
         self.load_stock_from_db()
@@ -129,8 +131,6 @@ class InventoryPage(ctk.CTkFrame):
         else:
             # Create new entry
             self.stock[code] = {"name": name, "qty": quantity, "threshold": threshold}
-
-        self.refresh_stock()
 
         # Save to Database
         self.cursor.execute(
@@ -214,35 +214,36 @@ class InventoryPage(ctk.CTkFrame):
     def refresh_stock(self):
         self.stock_list.delete(0, tk.END)
         low_items = []
+
         for code, data in self.stock.items():
             name, qty, threshold = data["name"], data["qty"], data["threshold"]
             self.stock_list.insert(tk.END, f"· {code} {name:<20} | {qty} (Threshold: {threshold})")
+
             if qty <= threshold:
                 low_items.append((code, name, threshold))
 
-        # Track new alerts for items that just went low
-        new_alerts = []
-        for code, name, threshold in low_items:
-            if code not in self.alerted_items:
-                new_alerts.append(f"{code} {name} (≤ {threshold})")
-                self.alerted_items.add(code)
+                # Only alert if this item hasn't been alerted during its current low episode
+                if not self.alerted_items.get(code, False):
+                    self.alerted_items[code] = True   # mark as alerted
+                    messagebox.showwarning(
+                        "Low Stock Alert",
+                        f"⚠️ '{name}' ({code}) is running low!\n"
+                        f"Current stock: {qty}  |  Threshold: {threshold}"
+                    )
+            else:
+                # Stock is healthy — reset this item's alert so it fires again if it drops low later
+                if code in self.alerted_items:
+                    self.alerted_items[code] = False
 
-        # Show popup if any new item went low
-        if new_alerts:
-            messagebox.showwarning(
-                "Low Stock Alert", 
-                f"The following items are running low:\n{', '.join(new_alerts)}"
-            )
-
-        # Update label with all currently low items
+        # Update the persistent bottom label with all currently low items
         if low_items:
             self.alert_label.configure(
-                text=f"⚠️ Low stock alert: {', '.join([f'{code} {name} (≤ {threshold})' for code, name, threshold in low_items])}"
+                text="⚠️ Low stock: " + ",  ".join(
+                    f"{name} ({code}) ≤ {threshold}" for code, name, threshold in low_items
+                )
             )
         else:
             self.alert_label.configure(text="")
-            # Reset alerts when everything recovers
-            self.alerted_items.clear()
 
     def on_item_select(self, event):
         try:
