@@ -100,14 +100,6 @@ def init_database():
     VALUES (1, 5.5, 3.2, 4.0)
     ''')
 
-    # Commit all table schemas to save changes permanently inside the .db file
-    conn.commit()
-    
-    # Close the connection safely to prevent file locks or memory leaks
-    conn.close()
-    
-    print("Database initialization successful! 'mepio_system.db' created.")
-
     # =========================================================================
     # 6. MARKETPLACE LINKED ACCOUNTS TABLE (OAuth 2.0 & Token Storage)
     # =========================================================================
@@ -150,6 +142,14 @@ def init_database():
         stock_qty INTEGER NOT NULL,
         safety_limit INTEGER DEFAULT 10
     )''')
+
+    # Commit all table schemas to save changes permanently inside the .db file
+    conn.commit()
+
+    # Close the connection safely to prevent file locks or memory leaks
+    conn.close()
+
+    print("Database initialization successful! 'mepio_system.db' created.")
 
 # This conditional block ensures that the database initialization script runs 
 # only if this specific file is executed directly (not when imported as a module).
