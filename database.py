@@ -100,6 +100,19 @@ def init_database():
     VALUES (1, 5.5, 3.2, 4.0)
     ''')
 
+    # =========================================================================
+    # 6. RECENT TRACKING TABLE (Logistics History)
+    # =========================================================================
+    # This table stores the most recently tracked parcels for quick access.
+    # Uses tracking_no as PRIMARY KEY so REPLACE INTO will overwrite old timestamps instead of duplicating.
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS recent_tracking (
+        tracking_no TEXT PRIMARY KEY,
+        courier TEXT,
+        track_type TEXT,
+        last_tracked TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     # Commit all table schemas to save changes permanently inside the .db file
     conn.commit()
     

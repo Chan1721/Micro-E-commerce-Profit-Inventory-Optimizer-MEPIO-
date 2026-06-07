@@ -116,7 +116,7 @@ def open_register_window(login_root):
                 conn.commit()
                 conn.close()
 
-                messagebox.showinfo("Success", f"Account successfully created for {username}!\n(Tell backend to add security_answer column!)")
+                messagebox.showinfo("Success", f"Account successfully created for {username}!")
                 sec_window.destroy()
                 
                 reg_window.destroy()

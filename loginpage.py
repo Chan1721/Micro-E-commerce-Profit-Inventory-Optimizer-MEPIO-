@@ -75,6 +75,18 @@ def make_field(parent, y, icon, title, show=None):
 username_entry = make_field(right, y=135, icon="👤", title="Username")
 password_entry = make_field(right, y=210, icon="🔒", title="Password", show="*")
 
+def toggle_password():
+    if show_password_cb.get() == 1:
+        password_entry.configure(show="")  
+    else:
+        password_entry.configure(show="*")
+
+show_password_cb = CTk.CTkCheckBox(
+    right, text="Show", width=50, height=20, font=("Helvetica", 11), border_width=2,fg_color="#3498db",  
+    command=toggle_password
+)
+show_password_cb.place(x=330, y=210)        
+
 
 remember_me = CTk.CTkCheckBox(right, text="Remember me", bg_color="#ffffff", text_color="#1a1a1a", font=("Helvetica", 11), hover_color="#f0f4ff", border_width=2)
 remember_me.place(x=44, y=290)
