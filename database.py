@@ -113,12 +113,38 @@ def init_database():
         last_tracked TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # =========================================================================
+    # 7. MARKETPLACE ORDERS TABLE 
+    # =========================================================================
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS marketplace_orders (
+        order_id TEXT PRIMARY KEY,
+        platform TEXT NOT NULL,
+        items TEXT,
+        order_value REAL DEFAULT 0.0,
+        status TEXT,
+        status_color TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # =========================================================================
+    # 8. LINKED ACCOUNTS TABLE 
+    # =========================================================================
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS linked_accounts (
+        account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        shop_id TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'Pending',
+        last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     # Commit all table schemas to save changes permanently inside the .db file
     conn.commit()
-    
+
     # Close the connection safely to prevent file locks or memory leaks
     conn.close()
-    
+
     print("Database initialization successful! 'mepio_system.db' created.")
 
 # This conditional block ensures that the database initialization script runs 
