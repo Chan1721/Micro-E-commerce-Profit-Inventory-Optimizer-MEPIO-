@@ -256,7 +256,6 @@ class DashboardPage(BasePage):
             record_count = cursor.fetchone()[0]
 
             if record_count == 0:
-                # 🚨 数据库是空的！触发 Empty State
                 conn.close()
                 self.render_empty_state()
                 return  
@@ -395,7 +394,7 @@ class LogisticsPage(BasePage):
         
         if track_type == "Inbound":
             self.courier_var = ctk.StringVar(value="17TRACK (Universal)")
-            couriers = ["17TRACK (Universal)", "Cainiao (淘宝集运)", "MyPoz (大马海运)"]
+            couriers = ["17TRACK (Universal)", "Cainiao (Taobao)", "MyPoz (Malaysia Sea Freight)"]
             dropdown = ctk.CTkOptionMenu(search_frame, variable=self.courier_var, values=couriers, width=160, height=35)
             dropdown.pack(side="left", padx=5)
             
@@ -491,7 +490,6 @@ class CalculatorPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
         
-        # 内部采用左右弹性分栏
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.content_frame.pack(fill="both", expand=True)
 
@@ -502,13 +500,13 @@ class CalculatorPage(BasePage):
         # Section 1: Product & Platform Details
         ctk.CTkLabel(self.input_frame, text="1. Product & Platform Details", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=(10, 15), anchor="w", padx=20)
 
-        #cwl加的
+        #cwl added
         self.platform_var = ctk.StringVar(value="Shopee")
         p_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
         p_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(p_frame, text="Target Platform:", width=180, anchor="w", text_color=("#333333", "#E0E0E0")).pack(side="left")
         ctk.CTkOptionMenu(p_frame, variable=self.platform_var, values=["Shopee", "TikTok", "Lazada"]).pack(side="right", fill="x", expand=True)
-        #cwl加的
+        #cwl added
 
         self.entries = {}
         base_fields = [
