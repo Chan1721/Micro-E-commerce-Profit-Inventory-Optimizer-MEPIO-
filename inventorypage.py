@@ -123,6 +123,33 @@ class InventoryPage(ctk.CTkFrame):
                                         text_color="#e74c3c")
         self.alert_label.pack(side="right")
 
+        # Search bar
+        search_frame = ctk.CTkFrame(stock_card, fg_color="transparent")
+        search_frame.pack(fill="x", padx=16, pady=(8, 0))
+
+        ctk.CTkLabel(search_frame, text="Search:", font=("Arial", 12)).pack(side="left", padx=(0, 6))
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Search by name or SKU...", width=250)
+        self.search_entry.pack(side="left", padx=(0, 10))
+        self.search_entry.bind("<KeyRelease>", lambda e: self.refresh_stock())
+
+        # Filter buttons
+        self.filter_mode = "all"
+
+        self.btn_filter_all = ctk.CTkButton(search_frame, text="All", width=60,
+            fg_color="#4F6EF7", hover_color="#3B55D4",
+            command=lambda: self.set_filter("all"))
+        self.btn_filter_all.pack(side="left", padx=4)
+
+        self.btn_filter_low = ctk.CTkButton(search_frame, text="Low Stock", width=90,
+            fg_color="#c0392b", hover_color="#e74c3c",
+            command=lambda: self.set_filter("low"))
+        self.btn_filter_low.pack(side="left", padx=4)
+
+        self.btn_filter_ok = ctk.CTkButton(search_frame, text="OK", width=60,
+            fg_color="#27ae60", hover_color="#2ecc71",
+            command=lambda: self.set_filter("ok"))
+        self.btn_filter_ok.pack(side="left", padx=4)
+
         # Column headers
         col_header = ctk.CTkFrame(stock_card,
                                   fg_color=("#F1F5F9", "#1D1E1F"),
@@ -240,6 +267,24 @@ class InventoryPage(ctk.CTkFrame):
             messagebox.showerror("Invalid Input",
                                  "Threshold must be a number")
 
+    def set_filter(self, mode):
+        self.filter_mode = mode
+        # Update button colours to show which is active
+        inactive_color = ("#E2E8F0", "#3d3d3d")
+        inactive_text = ("#475569", "#F8FAFC")
+        self.btn_filter_all.configure(fg_color=inactive_color, text_color=inactive_text)
+        self.btn_filter_low.configure(fg_color=inactive_color, text_color=inactive_text)
+        self.btn_filter_ok.configure(fg_color=inactive_color, text_color=inactive_text)
+
+        if mode == "all":
+            self.btn_filter_all.configure(fg_color="#4F6EF7", text_color="white")
+        elif mode == "low":
+            self.btn_filter_low.configure(fg_color="#c0392b", text_color="white")
+        elif mode == "ok":
+            self.btn_filter_ok.configure(fg_color="#27ae60", text_color="white")
+
+        self.refresh_stock()
+
     # ── Stock list renderer ──────────────────────────────────────────────────
 
     def refresh_stock(self):
@@ -248,6 +293,9 @@ class InventoryPage(ctk.CTkFrame):
             child.destroy()
 
         low_items = []
+
+        # get search text and filter mode
+        search = self.search_entry.get().strip().lower()
 
         if not self.stock:
             ctk.CTkLabel(self.scroll_frame,
@@ -260,6 +308,16 @@ class InventoryPage(ctk.CTkFrame):
                 name, qty, threshold = (data["name"], data["qty"],
                                         data["threshold"])
                 is_low = qty <= threshold
+
+                # skip if search text doesn't match name or code
+                if search and search not in name.lower() and search not in code.lower():
+                    continue
+
+                # skip if filter doesn't match
+                if self.filter_mode == "low" and not is_low:
+                    continue
+                if self.filter_mode == "ok" and is_low:
+                    continue
 
                 # Row card
                 row = ctk.CTkFrame(
