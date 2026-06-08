@@ -89,10 +89,15 @@ class MEPIOApp(ctk.CTk):
 
         # FIXED: Moved show_page down here so the self.pages dictionary exists before execution
         self.show_page("dash")
+
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
     def on_closing(self):
         self.quit()     
         self.destroy()
+
+        import sys
+        sys.exit(0)
 
     def show_page(self, page_name):
         # Hide all pages using grid_forget
