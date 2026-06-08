@@ -109,9 +109,9 @@ def open_register_window(login_root):
                 cursor = conn.cursor()
 
                 cursor.execute('''
-                    INSERT INTO users (username, password_hash) 
-                    VALUES (?, ?)
-                ''', (username, pwd))
+                    INSERT INTO users (username, password_hash, security_answer) 
+                    VALUES (?, ?, ?)
+                ''', (username, pwd, answer))
 
                 conn.commit()
                 conn.close()
