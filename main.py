@@ -1,5 +1,7 @@
 import customtkinter as ctk #shortcut for customtkinter as ctk
 import tkinter as tk 
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sqlite3
@@ -88,6 +90,15 @@ class MEPIOApp(ctk.CTk):
         # FIXED: Moved show_page down here so the self.pages dictionary exists before execution
         self.show_page("dash")
 
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+    def on_closing(self):
+        self.quit()     
+        self.destroy()
+
+        import sys
+        sys.exit(0)
+
     def show_page(self, page_name):
         # Hide all pages using grid_forget
         for frame in self.pages.values():
@@ -108,7 +119,8 @@ class BasePage(ctk.CTkFrame):
 
     def on_page_show(self, event):
         """Override this method in child classes to trigger actions when the page is shown."""
-        pass
+        if event.widget == self:
+            pass
 
 class DashboardPage(BasePage):
     def __init__(self, parent, controller):
@@ -141,75 +153,14 @@ class DashboardPage(BasePage):
         # platform benchmarking chart on the left
         self.chart_frame = ctk.CTkFrame(self.bottom_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         self.chart_frame.pack(side="left", fill="both", expand=True) 
+        self.chart_canvas_widget = None
+     
         
         ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Arial", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
         ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Arial", 12), text_color="gray").pack(anchor="w", padx=20)
 
-        self.canvas_widget = None
-        self.render_dashboard_chart()
+        self.load_benchmark_data() # 启动动态读取！
 
-    def on_page_show(self, event):
-        """When the Dashboard page is shown, re-render the chart to ensure it reflects the current theme (dark/light) and any updated data."""
-        if event.widget == self:
-            self.render_dashboard_chart()
-
-    def render_dashboard_chart(self):
-        if self.canvas_widget is not None:
-            self.canvas_widget.destroy()
-
-        current_mode = ctk.get_appearance_mode()
-        if current_mode == "Dark":
-            text_clr = "#CCCCCC"  
-            grid_clr = "#444444"  
-            fig_face = "#2B2B2B"
-        else:
-            text_clr = "#555555"  
-            grid_clr = "#E0E0E0"  
-            fig_face = "#FFFFFF"
-
-        fig, ax = plt.subplots(figsize=(4,2), dpi=100)
-        fig.patch.set_facecolor(fig_face) 
-        ax.set_facecolor(fig_face)
-
-        platforms = ['Shopee MY', 'TikTok Shop', 'Lazada'] 
-        x = [0, 1, 2] 
-        width = 0.15 
-
-        revenue = [5800, 4100, 2600]
-        net_profit = [1800, 1500, 900]
-        platform_fees = [300, 200, 100]
-
-        color_rev = '#637AFA'   
-        color_prof = '#5DC66A'  
-        color_fee = '#EAA844'   
-
-        ax.bar([i - width for i in x], revenue, width=width, label='Revenue', color=color_rev)
-        ax.bar(x, net_profit, width=width, label='Net profit', color=color_prof)
-        ax.bar([i + width for i in x], platform_fees, width=width, label='Platform fees', color=color_fee)
-        
-        ax.set_xticks(x)
-        ax.set_xticklabels(platforms, color=text_clr, fontsize=6, fontweight='bold', fontname='Arial')
-        ax.tick_params(axis='y', colors=text_clr, labelsize=6)
-
-        for label in ax.get_yticklabels():
-            label.set_fontname("Arial")
-            label.set_fontsize(8)
-            label.set_fontweight("bold")
-
-        ax.yaxis.grid(True, color=grid_clr, linestyle='-', linewidth=0.5, alpha=0.5)
-        ax.set_axisbelow(True) 
-        for spine in ax.spines.values():
-            spine.set_visible(False) 
-        ax.spines['bottom'].set_visible(True) 
-        ax.spines['bottom'].set_color(grid_clr)
-
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'family': 'Arial', 'size': 8, 'weight': 'bold'})
-        fig.tight_layout()
-
-        canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
-        canvas.draw()
-        self.canvas_widget = canvas.get_tk_widget()
-        self.canvas_widget.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
         # --- Right Side: Vertical Quick Actions ---
         if not hasattr(self, "action_card"):
@@ -259,6 +210,7 @@ class DashboardPage(BasePage):
 
             self.is_accordion_open = False
     
+
     def toggle_fee_accordion(self):
         if self.is_accordion_open:
             self.accordion_frame.pack_forget()  
@@ -298,21 +250,251 @@ class DashboardPage(BasePage):
             import tkinter.messagebox as messagebox
             messagebox.showerror("Database Error", f"Something went wrong: {e}")
 
+    def load_benchmark_data(self): 
+        import sqlite3
+
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()   
+
+            cursor.execute("SELECT COUNT(*) FROM profit_records")
+            record_count = cursor.fetchone()[0]
+
+            if record_count == 0:
+                conn.close()
+                self.render_empty_state()
+                return  
+
+            cursor.execute("SELECT platform, SUM(selling_price), SUM(net_profit), SUM(platform_fee) FROM profit_records GROUP BY platform")
+            data = cursor.fetchall()
+            conn.close() 
+
+            self.render_chart(data)
+
+        except Exception as e:
+            print(f"DB Error: {e}")
+            self.render_empty_state()
+
+    def render_chart(self, db_data):
+        import matplotlib.pyplot as plt
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        import customtkinter as ctk
+
+        for widget in self.chart_frame.winfo_children():
+            if not isinstance(widget, ctk.CTkLabel):
+                widget.destroy()
+
+        platforms = ['Shopee', 'TikTok', 'Lazada']
+        revenue = [0.0, 0.0, 0.0]
+        net_profit = [0.0, 0.0, 0.0]
+        platform_fees = [0.0, 0.0, 0.0]
+
+        for row in db_data:
+            db_plat = row[0]
+            if db_plat in platforms:
+                idx = platforms.index(db_plat)
+                revenue[idx] = row[1] or 0.0
+                net_profit[idx] = row[2] or 0.0
+                platform_fees[idx] = row[3] or 0.0
+
+        current_mode = ctk.get_appearance_mode()
+        fig_face_color = "#FFFFFF" if current_mode == "Light" else "#2B2B2B"
+        text_clr = "#CCCCCC" if current_mode == "Dark" else "#555555"
+        grid_clr = "#444444" if current_mode == "Dark" else "#E0E0E0"
+
+        fig, ax = plt.subplots(figsize=(4,2), dpi=100)
+        fig.patch.set_facecolor(fig_face_color)
+        ax.set_facecolor(fig_face_color)
+
+        x = range(len(platforms))
+        width = 0.15
+
+        ax.bar([i - width for i in x], revenue, width=width, label='Revenue', color='#637AFA')
+        ax.bar(x, net_profit, width=width, label='Net profit', color='#5DC66A')
+        ax.bar([i + width for i in x], platform_fees, width=width, label='Platform fees', color='#EAA844')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(platforms, color=text_clr, fontsize=6, fontweight='bold', fontname='Helvetica')
+        ax.tick_params(axis='y', colors=text_clr, labelsize=5)
+        
+        for label in ax.get_yticklabels():
+            label.set_fontname("Helvetica")
+            label.set_fontsize(8)
+            label.set_fontweight("bold")
+
+        ax.yaxis.grid(True, color=grid_clr, linestyle='-', linewidth=0.5, alpha=0.5)
+        ax.set_axisbelow(True)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.spines['bottom'].set_visible(True)
+        ax.spines['bottom'].set_color(grid_clr)
+
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False, labelcolor=text_clr, prop={'family': 'Helvetica', 'size': 8, 'weight': 'bold'})
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        canvas.draw()
+        self.chart_canvas_widget = canvas.get_tk_widget()
+        self.chart_canvas_widget.pack(fill="both", expand=True, padx=10, pady=(5, 10))        
+
+    def render_empty_state(self):
+        for widget in self.chart_frame.winfo_children():
+            if not isinstance(widget, ctk.CTkLabel): # 保留 Title
+                widget.destroy()
+
+            empty_frame = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
+            empty_frame.pack(fill="both", expand=True, pady=30)  
+
+            ctk.CTkLabel(empty_frame, text="📊", font=("Helvetica", 40)).pack(pady=(10, 5))
+            ctk.CTkLabel(empty_frame, text="No Benchmark Data Yet", font=("Helvetica", 14, "bold"), text_color="#94A3B8").pack() 
+
+            ctk.CTkLabel(empty_frame, text="Run your first profit calculation in the\nCalculator to generate live insights.", font=("Helvetica", 11), text_color="#64748B").pack(pady=5) 
+
+            ctk.CTkButton(empty_frame, text="Go to Calculator", width=120, height=28, fg_color="#3498db", font=("Helvetica", 11, "bold"),command=lambda: self.master.show_page("calculator") ).pack(pady=15)        
+
+######accordion style         
+
 class LogisticsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
-        self.track_frame = ctk.CTkFrame(self)
-        self.track_frame.pack(fill="x", padx=20, pady=10)
-        ctk.CTkLabel(self.track_frame, text="Quick Track (J&T / Poslaju):").pack(side="left", padx=10)
-        self.track_entry = ctk.CTkEntry(self.track_frame, placeholder_text="Enter Tracking Number", width=300)
-        self.track_entry.pack(side="left", padx=10, fill="x", expand=True)
-        ctk.CTkButton(self.track_frame, text="Track Order", width=100).pack(side="left", padx=10)
+        self.header.configure(text="Shipping & Logistics Tracking")
+
+        self.tabs = ctk.CTkTabview(self, width=800, height=400, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.tabs.pack(pady=(30, 10), padx=20, fill="both", expand=True)
+
+        self.tab_in = self.tabs.add(" Inbound (Supplier Restock)")
+        self.tab_out = self.tabs.add(" Outbound (Customer Orders)")
+
+        self.recent_frames = {}
+
+        self.build_tracking_ui(self.tab_in, "Inbound", "e.g., YT123456789 (China)")
+        self.build_tracking_ui(self.tab_out, "Outbound", "e.g., 620000000000 (J&T)")
+
+    def init_recent_db(self):
+        import sqlite3
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recent_tracking (
+                    tracking_no TEXT PRIMARY KEY,
+                    courier TEXT,
+                    track_type TEXT,
+                    last_tracked TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Recent DB Init Error: {e}")    
+
+    def build_tracking_ui(self, parent_tab, track_type, placeholder):
+        search_frame = ctk.CTkFrame(parent_tab, fg_color="transparent")
+        search_frame.pack(fill="x", pady=40, padx=20)
+        
+        ctk.CTkLabel(search_frame, text=f"{track_type} Track Number:", font=("Helvetica", 14, "bold")).pack(side="left", padx=(0, 10))
+        
+        entry = ctk.CTkEntry(search_frame, placeholder_text=placeholder, width=250, height=35)
+        entry.pack(side="left", padx=10)
+        
+        if track_type == "Inbound":
+            self.courier_var = ctk.StringVar(value="17TRACK (Universal)")
+            couriers = ["17TRACK (Universal)", "Cainiao (Taobao)", "MyPoz (Malaysia Sea Freight)"]
+            dropdown = ctk.CTkOptionMenu(search_frame, variable=self.courier_var, values=couriers, width=160, height=35)
+            dropdown.pack(side="left", padx=5)
+            
+            btn = ctk.CTkButton(search_frame, text="Track Parcel", fg_color="#3498db", font=("Helvetica", 13, "bold"), height=35,
+                                command=lambda: self.execute_tracking(entry.get(), self.courier_var.get(),track_type))
+            desc = "Select your specific China freight forwarder or universal tracker."
+        else:
+            btn = ctk.CTkButton(search_frame, text="Track via Tracking.my", fg_color="#3498db", font=("Helvetica", 13, "bold"), height=35,
+                                command=lambda: self.execute_tracking(entry.get(), "tracking.my", track_type))
+            desc = "Uses Tracking.my for Local Malaysia Couriers (J&T, Shopee Express, etc)."
+            
+        btn.pack(side="left", padx=10)
+
+        recent_container = ctk.CTkFrame(parent_tab, fg_color="transparent")
+        recent_container.pack(fill="x", padx=20, pady=(0, 20))
+        
+        self.recent_frames[track_type] = recent_container
+        
+        self.load_recents(track_type)
+        
+        ctk.CTkLabel(parent_tab, text=f"💡 Note: {desc}\nSystem will securely redirect to official tracking portal.", text_color="gray", font=("Helvetica", 12)).pack(pady=20)
+
+    def load_recents(self, track_type):
+        frame = self.recent_frames[track_type]
+        
+        for widget in list(frame.winfo_children()):
+            widget.destroy()
+
+        ctk.CTkLabel(frame, text="🕒 Recent:", font=("Helvetica", 12, "bold"), text_color="gray").pack(side="left", padx=(0, 10))
+
+        import sqlite3
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT tracking_no, courier FROM recent_tracking WHERE track_type=? ORDER BY last_tracked DESC LIMIT 4", (track_type,))
+            recents = cursor.fetchall()
+            conn.close()
+
+            if not recents:
+                ctk.CTkLabel(frame, text="No recent records yet.", font=("Helvetica", 11, "italic"), text_color="#A0A0A0").pack(side="left")
+            else:
+                for no, courier in recents:
+                    short_courier = courier.split()[0]
+                    btn_text = f"{no} ({short_courier})" 
+                    
+                    btn = ctk.CTkButton(
+                        frame, text=btn_text, fg_color="#F1F5F9", text_color="#3498db", hover_color="#E2E8F0", 
+                        font=("Helvetica", 11, "bold"), height=24, border_width=1, border_color="#D1D5DB",
+                        command=lambda q=no, s=courier: self.execute_tracking(q, s, track_type) 
+                    )
+                    btn.pack(side="left", padx=5)
+
+
+        except Exception as e:
+            print(f" UI Refresh Error: {e}")
+
+    def execute_tracking(self, query, service, track_type):
+        import webbrowser
+        import tkinter.messagebox as messagebox
+        import sqlite3
+        
+        query = query.strip()
+        if not query:
+            messagebox.showwarning("Empty Field", "Please enter a tracking number first!")
+            return
+        
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("REPLACE INTO recent_tracking (tracking_no, courier, track_type, last_tracked) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", (query, service, track_type))
+            conn.commit()
+            conn.close()
+            
+            self.load_recents(track_type)
+        except Exception as e:
+            print(f"DB Save Error: {e}")
+            
+        if service == "17TRACK (Universal)":
+            url = f"https://t.17track.net/en#nums={query}"
+            
+        elif service == "Cainiao (Taobao)":
+            url = f"https://global.cainiao.com/detail.htm?mailNoList={query}"
+            
+        elif service == "MyPoz (Malaysia Sea Freight)":
+            url = f"https://mypoz.com/tracking?no={query}"
+            
+        else: 
+            url = f"https://tracking.my/track/{query}"
+            
+        webbrowser.open(url)
 
 class CalculatorPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
         
-        # 内部采用左右弹性分栏
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.content_frame.pack(fill="both", expand=True)
 
@@ -320,8 +502,17 @@ class CalculatorPage(BasePage):
         self.input_frame = ctk.CTkFrame(self.content_frame, corner_radius=15, fg_color=("#FFFFFF", "#252525"))
         self.input_frame.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=5)
 
-        ctk.CTkLabel(self.input_frame, text="1. Product & Platform Details", font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(10, 15), anchor="w", padx=20)
-        
+        # Section 1: Product & Platform Details
+        ctk.CTkLabel(self.input_frame, text="1. Product & Platform Details", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=(10, 15), anchor="w", padx=20)
+
+        #cwl added
+        self.platform_var = ctk.StringVar(value="Shopee")
+        p_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
+        p_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(p_frame, text="Target Platform:", width=180, anchor="w", text_color=("#333333", "#E0E0E0")).pack(side="left")
+        ctk.CTkOptionMenu(p_frame, variable=self.platform_var, values=["Shopee", "TikTok", "Lazada"]).pack(side="right", fill="x", expand=True)
+        #cwl added
+
         self.entries = {}
         base_fields = [
             ("Cost Price (RM)", ""),
@@ -420,6 +611,26 @@ class CalculatorPage(BasePage):
             net_profit = selling - total_cost
             roi = (net_profit / cost * 100) if cost > 0 else 0
 
+            #cwladd
+            selected_platform = self.platform_var.get()
+            import sqlite3
+            try:
+                conn = sqlite3.connect('mepio_system.db')
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    INSERT INTO profit_records 
+                    (sku, platform, selling_price, cost_price, platform_fee, net_profit) 
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, ("SIMULATION", selected_platform, selling, cost, platform_fee_amount, net_profit))
+                
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"Sync DB Error: {e}")
+            #cwladd    
+
+            # 4. Render output data strings back to UI elements
             self.res_net_profit.configure(text=f"RM {net_profit:.2f}")
             self.res_roi.configure(text=f"{roi:.2f}%")
             self.res_total_packaging.configure(text=f"RM {total_packaging:.2f}")
@@ -428,9 +639,108 @@ class CalculatorPage(BasePage):
             if roi < 15:
                 self.lbl_insight.configure(text="⚠️ Warning: Low ROI!", text_color="#e74c3c")
             else:
-                self.lbl_insight.configure(text="✅ Healthy Margin!", text_color="#27ae60")
+                self.lbl_insight.configure(
+                    text="✅ Healthy Margin: This pricing setup efficiently covers fine packaging and provides strong commercial scale.",
+                    text_color="#27ae60"
+                )
+
+            self.run_roi_benchmarking()    
+            
         except ValueError:
             self.res_net_profit.configure(text="Invalid Input", text_color="#e74c3c")
+
+    def run_roi_benchmarking(self):
+        import sqlite3
+        import tkinter.messagebox as messagebox
+
+        try:
+            cost_str = self.entries["Cost Price (RM)"].get()
+            selling_str = self.entries["Selling Price (RM)"].get()
+
+            if not cost_str or not selling_str:
+                return
+            
+            cost = float(cost_str)
+            selling = float(selling_str)
+            if cost <= 0 or selling <= 0:
+                return
+            
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+
+            try:
+                cursor.execute("SELECT COUNT(*) FROM inventory")
+                item_count = cursor.fetchone()[0]
+            except sqlite3.OperationalError:
+                item_count = 0  
+            
+            if item_count == 0:
+                conn.close() 
+                self.lbl_insight.configure(
+                    text="⚠️ Benchmarking Unavailable! Please add initial items in Inventory first.",
+                    text_color="#C0392B"
+                )
+                return
+
+            cursor.execute("SELECT shopee_fee, tiktok_fee, lazada_fee FROM system_settings WHERE setting_id=1")
+            row = cursor.fetchone()
+            if row:
+                shopee_fee_pct, tiktok_fee_pct, lazada_fee_pct = row
+            else:
+                shopee_fee_pct, tiktok_fee_pct, lazada_fee_pct = 5.5, 3.2, 4.0    
+
+            conn.close()
+
+            shopee_fee_amt = selling * (shopee_fee_pct / 100)
+            tiktok_fee_amt = selling * (tiktok_fee_pct / 100)
+            lazada_fee_amt = selling * (lazada_fee_pct / 100)
+
+            try:
+                shipping = float(self.entries["Shipping Fee Paid by Seller (RM)"].get())
+            except:
+                shipping = 0.0
+                
+            try:
+                pkg_base = float(self.entries["Base Package Cost (RM)"].get())
+                labor = float(self.entries["Labor Cost per Item (RM)"].get())
+                buffer_cost = float(self.entries["Other Buffer Cost (RM)"].get())
+                total_pkg = pkg_base + labor + buffer_cost
+            except:
+                total_pkg = 0.20
+                
+            shopee_net = selling - cost - shipping - total_pkg - shopee_fee_amt
+            tiktok_net = selling - cost - shipping - total_pkg - tiktok_fee_amt
+            lazada_net = selling - cost - shipping - total_pkg - lazada_fee_amt
+
+            shopee_roi = (shopee_net / cost) * 100
+            tiktok_roi = (tiktok_net / cost) * 100
+            lazada_roi = (lazada_net / cost) * 100
+
+            rois = {"Shopee": shopee_roi, "TikTok Shop": tiktok_roi, "Lazada": lazada_roi}
+            best_platform = max(rois, key=rois.get)
+
+
+            first_insight = self.lbl_insight.cget("text")
+            
+            second_insight = (
+                f"📊 Live Benchmarking (DB Rates):\n"
+                f"• Shopee: {shopee_roi:.0f}% | TikTok: {tiktok_roi:.0f}% | Lazada: {lazada_roi:.0f}%\n"
+                f"💡 ADVICE: [{best_platform}] is the optimal platform."
+            )
+            
+            combined_insight = f"{first_insight}\n\n{second_insight}"
+            
+            self.lbl_insight.configure(
+                text=combined_insight, 
+                text_color="#1B4F72" #3498db for main text, #C0392B for warnings
+            )
+
+        except ValueError:
+            pass 
+        except Exception as e:
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Error", f"System Error: {e}")   
+
 
 class AnalyticsPage(BasePage):
     def __init__(self, parent, controller):

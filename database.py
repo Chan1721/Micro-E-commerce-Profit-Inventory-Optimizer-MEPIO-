@@ -101,46 +101,42 @@ def init_database():
     ''')
 
     # =========================================================================
-    # 6. MARKETPLACE LINKED ACCOUNTS TABLE (OAuth 2.0 & Token Storage)
+    # 6. RECENT TRACKING TABLE (Logistics History)
     # =========================================================================
-    # Stores secured connection handshakes for connected Shopee, Lazada, or TikTok stores
+    # This table stores the most recently tracked parcels for quick access.
+    # Uses tracking_no as PRIMARY KEY so REPLACE INTO will overwrite old timestamps instead of duplicating.
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS linked_accounts (
-        account_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL,
-        shop_id TEXT NOT NULL UNIQUE,
-        auth_token TEXT NOT NULL,
-        sync_status TEXT DEFAULT 'Active',
-        last_synced TEXT DEFAULT 'Never'
+    CREATE TABLE IF NOT EXISTS recent_tracking (
+        tracking_no TEXT PRIMARY KEY,
+        courier TEXT,
+        track_type TEXT,
+        last_tracked TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # =========================================================================
-    # 7. MARKETPLACE ORDERS STREAM TABLE (Synchronized Order Feeds)
+    # 7. MARKETPLACE ORDERS TABLE 
     # =========================================================================
-    # Stores dynamic streaming sales records downloaded from active integrated shop channels
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS marketplace_orders (
         order_id TEXT PRIMARY KEY,
         platform TEXT NOT NULL,
-        shop_id TEXT NOT NULL,
-        items TEXT NOT NULL,
-        order_value TEXT NOT NULL,
-        status TEXT NOT NULL,
-        status_color TEXT NOT NULL
+        items TEXT,
+        order_value REAL DEFAULT 0.0,
+        status TEXT,
+        status_color TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # =========================================================================
-    # 8. MARKETPLACE ONLINE INVENTORY TABLE (Multi-Store Stock Tracking)
+    # 8. LINKED ACCOUNTS TABLE 
     # =========================================================================
-    # Mapped live product quantities synced across seller channels with low stock trigger lines
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS marketplace_inventory (
-        sku_id TEXT PRIMARY KEY,
-        product_name TEXT NOT NULL,
+    CREATE TABLE IF NOT EXISTS linked_accounts (
+        account_id INTEGER PRIMARY KEY AUTOINCREMENT,
         platform TEXT NOT NULL,
         shop_id TEXT NOT NULL,
-        stock_qty INTEGER NOT NULL,
-        safety_limit INTEGER DEFAULT 10
+        sync_status TEXT DEFAULT 'Pending',
+        last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # Commit all table schemas to save changes permanently inside the .db file
