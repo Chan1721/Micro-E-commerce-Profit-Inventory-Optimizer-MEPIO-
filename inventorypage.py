@@ -352,15 +352,30 @@ class InventoryPage(ctk.CTkFrame):
                 lbl_name.pack(side="left", padx=4, pady=10)
                 _bind_click(lbl_name)
 
-                # Qty
-                lbl_qty = ctk.CTkLabel(row, text=str(qty),
+                # Qty with +/- buttons
+                qty_frame = ctk.CTkFrame(row, fg_color="transparent")
+                qty_frame.pack(side="left", padx=4, pady=10)
+
+                btn_minus = ctk.CTkButton(qty_frame, text="-", width=26, height=26,
+                    font=("Arial", 13, "bold"),
+                    fg_color=("#E2E8F0", "#3d3d3d"), hover_color=("#CBD5E1", "#555"),
+                    text_color=("#475569", "#F8FAFC"), corner_radius=6,
+                    command=lambda c=code: self.change_qty(c, -1))
+                btn_minus.pack(side="left", padx=(0, 4))
+
+                lbl_qty = ctk.CTkLabel(qty_frame, text=str(qty),
                              font=("Arial", 13, "bold"),
-                             text_color=("#e74c3c" if is_low
-                                         else "#1E293B", "#e74c3c" if is_low
-                                         else "#F1F5F9"),
-                             width=60, anchor="center", cursor="hand2")
-                lbl_qty.pack(side="left", padx=4, pady=10)
-                _bind_click(lbl_qty)
+                             text_color=("#e74c3c" if is_low else "#1E293B",
+                                         "#e74c3c" if is_low else "#F1F5F9"),
+                             width=30, anchor="center")
+                lbl_qty.pack(side="left")
+
+                btn_plus = ctk.CTkButton(qty_frame, text="+", width=26, height=26,
+                    font=("Arial", 13, "bold"),
+                    fg_color=("#E2E8F0", "#3d3d3d"), hover_color=("#CBD5E1", "#555"),
+                    text_color=("#475569", "#F8FAFC"), corner_radius=6,
+                    command=lambda c=code: self.change_qty(c, 1))
+                btn_plus.pack(side="left", padx=(4, 0))
 
                 # Threshold
                 lbl_thresh = ctk.CTkLabel(row, text=str(threshold),
@@ -404,6 +419,22 @@ class InventoryPage(ctk.CTkFrame):
             )
         else:
             self.alert_label.configure(text="✓ All items stocked")
+
+    def change_qty(self, code, amount):
+        if code not in self.stock:
+            return
+        new_qty = self.stock[code]["qty"] + amount
+        if new_qty < 0:
+            messagebox.showerror("Error", "Stock cannot go below 0")
+            return
+        self.stock[code]["qty"] = new_qty
+        if new_qty == 0:
+            del self.stock[code]
+            self.cursor.execute("DELETE FROM inventory WHERE sku = ?", (code,))
+        else:
+            self.cursor.execute("UPDATE inventory SET local_stock = ? WHERE sku = ?", (new_qty, code))
+        self.conn.commit()
+        self.refresh_stock()
 
     def _select_row(self, code, name):
         self.entry_code.delete(0, tk.END)
