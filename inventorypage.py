@@ -2,11 +2,6 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
-import threading
-import queue
-import socket
-
-from flask import Flask, request, jsonify
 
 
 class InventoryPage(ctk.CTkFrame):
@@ -26,11 +21,6 @@ class InventoryPage(ctk.CTkFrame):
 
         # Per-item alert state
         self.alerted_items = {}
-
-        # Scanner server stuff
-        self.scan_queue = queue.Queue()
-        self.scanner_server = None
-        self.scanner_running = False
 
         # ── Page Header ──────────────────────────────────────────────────────
         self.header = ctk.CTkLabel(
@@ -115,17 +105,6 @@ class InventoryPage(ctk.CTkFrame):
             fg_color="#4F6EF7", hover_color="#3B55D4",
             font=("Arial", 13, "bold"), width=150, height=36, corner_radius=8
         ).pack(side="left")
-
-        self.btn_scan = ctk.CTkButton(
-            btn_frame, text="📱  Scan Barcode",
-            command=self.toggle_scanner,
-            fg_color="#f39c12", hover_color="#e67e22",
-            font=("Arial", 13, "bold"), width=160, height=36, corner_radius=8
-        )
-        self.btn_scan.pack(side="left", padx=(10, 0))
-
-        self.scan_status_label = ctk.CTkLabel(btn_frame, text="", font=("Arial", 11), text_color="#27ae60")
-        self.scan_status_label.pack(side="left", padx=(10, 0))
 
         # ── Stock Table Card ─────────────────────────────────────────────────
         stock_card = ctk.CTkFrame(self, corner_radius=12,
@@ -287,169 +266,6 @@ class InventoryPage(ctk.CTkFrame):
         except ValueError:
             messagebox.showerror("Invalid Input",
                                  "Threshold must be a number")
-
-    # ── Barcode scanner (phone over WiFi) ───────────────────────────────────
-
-    def get_local_ip(self):
-        # Get the PC's local IP address so phone can connect
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-        except Exception:
-            ip = "127.0.0.1"
-        finally:
-            s.close()
-        return ip
-
-    def toggle_scanner(self):
-        if self.scanner_running:
-            self.stop_scanner()
-        else:
-            self.start_scanner()
-
-    def start_scanner(self):
-        ip = self.get_local_ip()
-        port = 5050
-
-        # Simple Flask app — just two routes
-        app = Flask(__name__)
-        app.logger.disabled = True
-        import logging
-        log = logging.getLogger("werkzeug")
-        log.setLevel(logging.ERROR)
-
-        @app.route("/")
-        def index():
-            # Webpage that opens phone camera and scans barcode
-            html = """<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MEPIO Barcode Scanner</title>
-  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f8fafc; }
-    h2 { color: #4F6EF7; }
-    #video { width: 100%; max-width: 400px; border-radius: 12px; }
-    #result { margin-top: 20px; font-size: 20px; font-weight: bold; color: #27ae60; }
-    #status { color: #888; font-size: 14px; margin-top: 8px; }
-  </style>
-</head>
-<body>
-  <h2>MEPIO Barcode Scanner</h2>
-  <p id="status">Starting camera...</p>
-  <video id="video" autoplay muted playsinline></video>
-  <div id="result"></div>
-  <script>
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    codeReader.decodeFromVideoDevice(null, "video", (result, err) => {
-      if (result) {
-        document.getElementById("result").innerText = "Scanned: " + result.text;
-        document.getElementById("status").innerText = "Sending to app...";
-        fetch("/scan", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({sku: result.text})
-        }).then(() => {
-          document.getElementById("status").innerText = "Sent! Scan another item.";
-        });
-      }
-    });
-    document.getElementById("status").innerText = "Point camera at barcode";
-  </script>
-</body>
-</html>"""
-            return html
-
-        @app.route("/scan", methods=["POST"])
-        def receive_scan():
-            data = request.get_json()
-            if data and "sku" in data:
-                self.scan_queue.put(data["sku"])
-            return jsonify({"ok": True})
-
-        # Run Flask in a background thread so it doesn't freeze the app
-        self.scanner_running = True
-        self.scanner_thread = threading.Thread(
-            target=lambda: app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False),
-            daemon=True
-        )
-        self.scanner_thread.start()
-
-        # Update UI
-        self.btn_scan.configure(text="🛑  Stop Scanner", fg_color="#c0392b", hover_color="#e74c3c")
-        self.scan_status_label.configure(text=f"Open on phone: http://{ip}:{port}")
-
-        # Start polling the queue every 500ms
-        self.poll_scan_queue()
-
-        # Show a popup with the QR/link so user can easily open on phone
-        self.show_scanner_popup(ip, port)
-
-    def stop_scanner(self):
-        self.scanner_running = False
-        self.btn_scan.configure(text="📱  Scan Barcode", fg_color="#f39c12", hover_color="#e67e22")
-        self.scan_status_label.configure(text="")
-
-    def poll_scan_queue(self):
-        # Check if a new scan came in
-        try:
-            sku = self.scan_queue.get_nowait()
-            self.entry_code.delete(0, tk.END)
-            self.entry_code.insert(0, sku)
-            # Also auto-fill item name if SKU exists in DB
-            self.cursor.execute("SELECT product_name FROM inventory WHERE sku = ?", (sku,))
-            result = self.cursor.fetchone()
-            if result:
-                self.entry_item.delete(0, tk.END)
-                self.entry_item.insert(0, result[0])
-            self.scan_status_label.configure(text=f"Scanned: {sku} ✓")
-        except queue.Empty:
-            pass
-
-        # Keep polling while scanner is on
-        if self.scanner_running:
-            self.after(500, self.poll_scan_queue)
-
-    def show_scanner_popup(self, ip, port):
-        # Show a small window with the link and a QR code
-        popup = ctk.CTkToplevel(self)
-        popup.title("Barcode Scanner")
-        popup.geometry("340x220")
-        popup.resizable(False, False)
-        popup.grab_set()
-
-        ctk.CTkLabel(popup, text="📱 Phone Scanner Active",
-                     font=("Arial", 16, "bold"), text_color="#4F6EF7").pack(pady=(20, 4))
-        ctk.CTkLabel(popup, text="Open this URL on your phone browser:",
-                     font=("Arial", 12), text_color="gray").pack()
-
-        url = f"http://{ip}:{port}"
-        ctk.CTkLabel(popup, text=url,
-                     font=("Arial", 14, "bold"), text_color="#27ae60").pack(pady=(6, 4))
-
-        ctk.CTkLabel(popup, text="Make sure your phone is on the same WiFi.",
-                     font=("Arial", 11), text_color="gray").pack()
-
-        # Try to show QR code if qrcode library is available
-        try:
-            import qrcode
-            from PIL import Image, ImageTk
-            import io
-
-            qr = qrcode.make(url)
-            qr = qr.resize((120, 120))
-            qr_img = ImageTk.PhotoImage(qr)
-            lbl_qr = tk.Label(popup, image=qr_img, bg="#FFFFFF")
-            lbl_qr.image = qr_img  # keep reference
-            lbl_qr.pack(pady=8)
-        except ImportError:
-            ctk.CTkLabel(popup, text="(Install qrcode + Pillow for QR code display)",
-                         font=("Arial", 10), text_color="gray").pack(pady=8)
-
-        ctk.CTkButton(popup, text="Close", width=100,
-                      command=popup.destroy).pack(pady=(0, 16))
 
     def set_filter(self, mode):
         self.filter_mode = mode
