@@ -266,54 +266,63 @@ class InventoryPage(ctk.CTkFrame):
                     self.scroll_frame,
                     fg_color=("#FEF2F2" if is_low else "#F8FAFC",
                               "#3B1E1E" if is_low else "#1D1E1F"),
-                    corner_radius=8
+                    corner_radius=8,
+                    cursor="hand2"
                 )
                 row.pack(fill="x", padx=4, pady=3)
 
-                # Bind click to fill entries
-                row.bind("<Button-1>",
-                         lambda e, c=code, n=name: self._select_row(c, n))
+                # Helper: bind click on a widget and propagate to row
+                def _bind_click(widget, c=code, n=name):
+                    widget.bind("<Button-1>",
+                                lambda e, c=c, n=n: self._select_row(c, n))
+
+                _bind_click(row)
 
                 # SKU
-                ctk.CTkLabel(row, text=code,
+                lbl_code = ctk.CTkLabel(row, text=code,
                              font=("Consolas", 12, "bold"),
                              text_color=("#475569", "#CBD5E1"),
-                             width=120, anchor="w").pack(
-                    side="left", padx=(12, 4), pady=10)
+                             width=120, anchor="w", cursor="hand2")
+                lbl_code.pack(side="left", padx=(12, 4), pady=10)
+                _bind_click(lbl_code)
 
                 # Name
-                ctk.CTkLabel(row, text=name,
+                lbl_name = ctk.CTkLabel(row, text=name,
                              font=("Arial", 12),
                              text_color=("#1E293B", "#F1F5F9"),
-                             width=260, anchor="w").pack(
-                    side="left", padx=4, pady=10)
+                             width=260, anchor="w", cursor="hand2")
+                lbl_name.pack(side="left", padx=4, pady=10)
+                _bind_click(lbl_name)
 
                 # Qty
-                ctk.CTkLabel(row, text=str(qty),
+                lbl_qty = ctk.CTkLabel(row, text=str(qty),
                              font=("Arial", 13, "bold"),
                              text_color=("#e74c3c" if is_low
                                          else "#1E293B", "#e74c3c" if is_low
                                          else "#F1F5F9"),
-                             width=60, anchor="center").pack(
-                    side="left", padx=4, pady=10)
+                             width=60, anchor="center", cursor="hand2")
+                lbl_qty.pack(side="left", padx=4, pady=10)
+                _bind_click(lbl_qty)
 
                 # Threshold
-                ctk.CTkLabel(row, text=str(threshold),
+                lbl_thresh = ctk.CTkLabel(row, text=str(threshold),
                              font=("Arial", 12),
                              text_color=("#64748B", "#94A3B8"),
-                             width=80, anchor="center").pack(
-                    side="left", padx=4, pady=10)
+                             width=80, anchor="center", cursor="hand2")
+                lbl_thresh.pack(side="left", padx=4, pady=10)
+                _bind_click(lbl_thresh)
 
                 # Status badge
                 badge_text = "⚠ Low Stock" if is_low else "✓ OK"
                 badge_fg = "#e74c3c" if is_low else "#27ae60"
-                ctk.CTkLabel(row, text=badge_text,
+                lbl_badge = ctk.CTkLabel(row, text=badge_text,
                              font=("Arial", 10, "bold"),
                              text_color="white",
                              fg_color=badge_fg,
                              corner_radius=5,
-                             width=90).pack(
-                    side="left", padx=(4, 12), pady=10)
+                             width=90, cursor="hand2")
+                lbl_badge.pack(side="left", padx=(4, 12), pady=10)
+                _bind_click(lbl_badge)
 
                 if is_low:
                     low_items.append((code, name, threshold))
