@@ -364,11 +364,13 @@ class LogisticsPage(BasePage):
 
         self.tab_in = self.tabs.add(" Inbound (Supplier Restock)")
         self.tab_out = self.tabs.add(" Outbound (Customer Orders)")
+        self.tab_carrier = self.tabs.add(" Carrier Efficiency")
 
         self.recent_frames = {}
 
         self.build_tracking_ui(self.tab_in, "Inbound", "e.g., YT123456789 (China)")
         self.build_tracking_ui(self.tab_out, "Outbound", "e.g., 620000000000 (J&T)")
+        self.build_carrier_efficiency_ui(self.tab_carrier)
 
     def init_recent_db(self):
         import sqlite3
@@ -490,6 +492,98 @@ class LogisticsPage(BasePage):
             url = f"https://tracking.my/track/{query}"
             
         webbrowser.open(url)
+
+    def build_carrier_efficiency_ui(self, parent_tab):
+        # Header section
+        header_frame = ctk.CTkFrame(parent_tab, fg_color="transparent")
+        header_frame.pack(fill="x", padx=20, pady=(20, 5))
+        ctk.CTkLabel(header_frame, text="Shipping Carrier Efficiency Comparison", font=("Helvetica", 16, "bold")).pack(side="left")
+
+        self._carrier_chart_frame_ref = None
+
+        ctk.CTkLabel(parent_tab, text="Avg. delivery speed, on-time rate & cost-per-parcel across local couriers.",
+                     font=("Helvetica", 11), text_color="gray").pack(anchor="w", padx=20, pady=(0, 10))
+
+        # Stats summary cards
+        cards_frame = ctk.CTkFrame(parent_tab, fg_color="transparent")
+        cards_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        carrier_summary = [
+            ("J&T Express",   "⚡ Fastest Avg",   "1.8 days",        "#3498db"),
+            ("Shopee Xpress", "💰 Cheapest",       "RM 4.20/parcel",  "#27ae60"),
+            ("Pos Laju",      "🏆 Best On-Time",   "96% on-time",     "#9b59b6"),
+            ("GDex",          "📦 Most Used",      "38% of orders",   "#e67e22"),
+        ]
+        for carrier, label, value, color in carrier_summary:
+            card = ctk.CTkFrame(cards_frame, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+            card.pack(side="left", padx=8, fill="both", expand=True)
+            ctk.CTkLabel(card, text=carrier, font=("Helvetica", 11, "bold"), text_color=color).pack(pady=(12, 0))
+            ctk.CTkLabel(card, text=label, font=("Helvetica", 10), text_color="gray").pack()
+            ctk.CTkLabel(card, text=value, font=("Helvetica", 14, "bold")).pack(pady=(2, 12))
+
+        # Refresh button
+        chart_outer = ctk.CTkFrame(parent_tab, fg_color="transparent")
+        chart_outer.pack(fill="both", expand=True, padx=20, pady=(0, 5))
+
+        btn_refresh = ctk.CTkButton(chart_outer, text="🔄 Refresh Chart", fg_color="#3498db",
+                                    font=("Helvetica", 12, "bold"), height=30, width=120,
+                                    command=lambda: self.render_carrier_chart(chart_frame))
+        btn_refresh.pack(anchor="e", pady=(0, 5))
+
+        # Chart frame
+        chart_frame = ctk.CTkFrame(chart_outer, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        chart_frame.pack(fill="both", expand=True)
+        self.render_carrier_chart(chart_frame)
+
+        ctk.CTkLabel(parent_tab,
+                     text="💡 Data based on simulated order history. Connect live courier API in Settings for real-time metrics.",
+                     text_color="gray", font=("Helvetica", 11)).pack(pady=(5, 10))
+
+    def render_carrier_chart(self, chart_frame):
+        for widget in chart_frame.winfo_children():
+            widget.destroy()
+
+        carriers     = ["J&T Express", "Shopee Xpress", "Pos Laju", "GDex", "City-Link"]
+        avg_days     = [1.8, 2.3, 2.1, 2.7, 3.1]
+        on_time_pct  = [88,  82,  96,  78,  71 ]
+        cost_per_pkg = [5.50, 4.20, 6.80, 5.10, 4.90]
+
+        current_mode = ctk.get_appearance_mode()
+        fig_face = "#FFFFFF" if current_mode == "Light" else "#2B2B2B"
+        text_clr = "#555555" if current_mode == "Light" else "#CCCCCC"
+        grid_clr = "#E0E0E0" if current_mode == "Light" else "#444444"
+
+        fig, axes = plt.subplots(1, 3, figsize=(9, 2.8), dpi=96)
+        fig.patch.set_facecolor(fig_face)
+        fig.subplots_adjust(wspace=0.45, left=0.07, right=0.97, top=0.82, bottom=0.22)
+
+        short_labels = ["J&T", "SXpress", "Pos Laju", "GDex", "City-Link"]
+        datasets = [
+            (axes[0], avg_days,     "Avg Delivery (days)", "#637AFA", "{:.1f}d"),
+            (axes[1], on_time_pct,  "On-Time Rate (%)",    "#5DC66A", "{:.0f}%"),
+            (axes[2], cost_per_pkg, "Cost / Parcel (RM)",  "#EAA844", "RM{:.2f}"),
+        ]
+
+        for ax, values, title, color, fmt in datasets:
+            ax.set_facecolor(fig_face)
+            bars = ax.bar(short_labels, values, color=color, width=0.5, zorder=3)
+            ax.set_title(title, color=text_clr, fontsize=8, fontweight="bold", pad=6)
+            ax.tick_params(axis='x', colors=text_clr, labelsize=6.5, rotation=15)
+            ax.tick_params(axis='y', colors=text_clr, labelsize=6.5)
+            ax.yaxis.grid(True, color=grid_clr, linestyle='-', linewidth=0.5, alpha=0.6)
+            ax.set_axisbelow(True)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            for bar, val in zip(bars, values):
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(values) * 0.02,
+                        fmt.format(val), ha='center', va='bottom', color=text_clr,
+                        fontsize=6, fontweight='bold')
+
+        canvas = FigureCanvasTkAgg(fig, master=chart_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True, padx=8, pady=8)
+        plt.close(fig)
+
 
 class CalculatorPage(BasePage):
     def __init__(self, parent, controller):
