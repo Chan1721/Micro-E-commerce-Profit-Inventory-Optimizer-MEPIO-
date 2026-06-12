@@ -129,22 +129,38 @@ class DashboardPage(BasePage):
         # Statistical summary cards
         self.stats_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.stats_frame.pack(fill="x", padx=20)
-        
-        metrics = [
-            ("Total Revenue", "RM 12,450.00", "+5.2% vs last month", "up"), 
-            ("Net Profit", "RM 4,200.50", "-1.5% vs last month", "down"), 
-            ("Platform Fees", "RM 850.20", "+12.0% vs last month", "up"), 
-            ("Low Stock", "5 Items", "Requires Attention", "down")
-        ]
-        
-        for name, value, trend, direction in metrics:
-            card = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
-            card.pack(side="left", padx=10, fill="both", expand=True)
-            ctk.CTkLabel(card, text=name, font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
-            ctk.CTkLabel(card, text=value, font=("Arial", 18, "bold")).pack(pady=(5, 15))
 
-            trend_color = "#2ecc71" if direction == "up" else "#e74c3c"
-            ctk.CTkLabel(card, text=trend, font=("Arial", 11, "bold"), text_color=trend_color).pack(pady=(0, 15))
+        #=== yj: REPLACED CARDS GENERATION FOR LIVE METRICS SYNC ===
+        # Card 1: Total Revenue (We explicit link self.lbl_rev_val here)
+        card_rev = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        card_rev.pack(side="left", padx=10, fill="both", expand=True)
+        ctk.CTkLabel(card_rev, text="Total Revenue", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+        self.lbl_rev_val = ctk.CTkLabel(card_rev, text="RM 0.00", font=("Arial", 18, "bold"))
+        self.lbl_rev_val.pack(pady=(5, 15))
+        ctk.CTkLabel(card_rev, text="+5.2% vs last month", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
+
+        # Card 2: Total Orders (We explicit link self.lbl_orders_val here to count rows)
+        card_orders = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        card_orders.pack(side="left", padx=10, fill="both", expand=True)
+        ctk.CTkLabel(card_orders, text="Total Orders", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+        self.lbl_orders_val = ctk.CTkLabel(card_orders, text="0 Pcs", font=("Arial", 18, "bold"))
+        self.lbl_orders_val.pack(pady=(5, 15))
+        ctk.CTkLabel(card_orders, text="Live Counter", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
+
+        # Card 3: Platform Fees
+        card_fees = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        card_fees.pack(side="left", padx=10, fill="both", expand=True)
+        ctk.CTkLabel(card_fees, text="Platform Fees", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+        ctk.CTkLabel(card_fees, text="RM 850.20", font=("Arial", 18, "bold")).pack(pady=(5, 15))
+        ctk.CTkLabel(card_fees, text="+12.0% vs last month", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
+
+        # Card 4: Low Stock
+        card_stock = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        card_stock.pack(side="left", padx=10, fill="both", expand=True)
+        ctk.CTkLabel(card_stock, text="Low Stock", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+        ctk.CTkLabel(card_stock, text="5 Items", font=("Arial", 18, "bold")).pack(pady=(5, 15))
+        ctk.CTkLabel(card_stock, text="Requires Attention", font=("Arial", 11, "bold"), text_color="#e74c3c").pack(pady=(0, 15))
+        # === yj: END OF REPLACEMENT ===
 
         # Bottom layout wrapper (Left and Right)
         self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
@@ -159,7 +175,7 @@ class DashboardPage(BasePage):
         ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Arial", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
         ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Arial", 12), text_color="gray").pack(anchor="w", padx=20)
 
-        self.load_benchmark_data() # 启动动态读取！
+        self.load_benchmark_data() # 启动动态读取
 
 
         # --- Right Side: Vertical Quick Actions ---
@@ -209,7 +225,50 @@ class DashboardPage(BasePage):
             self.save_fee_btn.pack(pady=(5, 10), padx=15, fill="x")
 
             self.is_accordion_open = False
-    
+      
+    def fetch_live_dashboard_metrics(self):
+        """Queries database records to dynamically compute real-time summary numbers from linked stores."""
+        total_orders = 0
+        total_revenue = 0.0
+
+        try:
+            import sqlite3
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+
+            # 1. Pull total synchronized order items row counts from user's synced streams
+            cursor.execute("SELECT COUNT(*) FROM marketplace_orders")
+            total_orders = cursor.fetchone()[0]
+
+            # 2. Iterate through sales records to parse and sum the dynamic revenue decimals
+            cursor.execute("SELECT order_value FROM marketplace_orders")
+            rows = cursor.fetchall()
+            for row in rows:
+                try:
+                    # Strip out 'RM' and spaces safely to convert the string back to float calculation
+                    val_str = row[0].replace('RM', '').replace(' ', '').strip()
+                    total_revenue += float(val_str)
+                except:
+                    pass
+
+            conn.close()
+        except sqlite3.OperationalError:
+            # Fallback block to maintain UI stability if the database tables are temporarily empty
+            pass
+
+        return total_orders, total_revenue
+
+    # === (Live Analytics Sync Pipelines) ===
+    def on_page_refresh(self, event):
+        """Dynamic bridge listener triggering UI card text configuration whenever the user switches back to dashboard."""
+        t_orders, t_rev = self.fetch_live_dashboard_metrics()
+        
+        # Safely re-configure underlying text labels targets to project active data streams
+        if hasattr(self, 'lbl_orders_val') and self.lbl_orders_val:
+            self.lbl_orders_val.configure(text=f"{t_orders} Pcs")
+        if hasattr(self, 'lbl_rev_val') and self.lbl_rev_val:
+            self.lbl_rev_val.configure(text=f"RM {t_rev:.2f}")
+        
 
     def toggle_fee_accordion(self):
         if self.is_accordion_open:
