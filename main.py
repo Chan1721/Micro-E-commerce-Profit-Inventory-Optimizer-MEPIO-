@@ -159,7 +159,7 @@ class DashboardPage(BasePage):
         ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Arial", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
         ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Arial", 12), text_color="gray").pack(anchor="w", padx=20)
 
-        self.load_benchmark_data() # 启动动态读取！
+        self.load_benchmark_data() 
 
 
         # --- Right Side: Vertical Quick Actions ---
@@ -339,7 +339,7 @@ class DashboardPage(BasePage):
 
     def render_empty_state(self):
         for widget in self.chart_frame.winfo_children():
-            if not isinstance(widget, ctk.CTkLabel): # 保留 Title
+            if not isinstance(widget, ctk.CTkLabel): 
                 widget.destroy()
 
             empty_frame = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
@@ -446,6 +446,9 @@ class LogisticsPage(BasePage):
                 for no, courier in recents:
                     short_courier = courier.split()[0]
                     btn_text = f"{no} ({short_courier})" 
+
+                    item_frame = ctk.CTkFrame(frame, fg_color="transparent")
+                    item_frame.pack(side="left", padx=5)
                     
                     btn = ctk.CTkButton(
                         frame, text=btn_text, fg_color="#F1F5F9", text_color="#3498db", hover_color="#E2E8F0", 
@@ -453,6 +456,13 @@ class LogisticsPage(BasePage):
                         command=lambda q=no, s=courier: self.execute_tracking(q, s, track_type) 
                     )
                     btn.pack(side="left", padx=5)
+
+                    del_btn = ctk.CTkButton(
+                        item_frame, text="✖", width=24, height=24, fg_color="transparent", 
+                        text_color="#e74c3c", hover_color="#f8d7da", font=("Helvetica", 12),
+                        command=lambda q=no: self.delete_recent_tracking(q, track_type)
+                    )
+                    del_btn.pack(side="left")
 
 
         except Exception as e:
@@ -492,6 +502,19 @@ class LogisticsPage(BasePage):
             url = f"https://tracking.my/track/{query}"
             
         webbrowser.open(url)
+
+    def delete_recent_tracking(self, tracking_no, track_type):
+        import sqlite3
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM recent_tracking WHERE tracking_no=?", (tracking_no,))
+            conn.commit()
+            conn.close()
+            
+            self.load_recents(track_type)
+        except Exception as e:
+            print(f"Delete UI Error: {e}")    
 
     def build_carrier_efficiency_ui(self, parent_tab):
         # Header section
