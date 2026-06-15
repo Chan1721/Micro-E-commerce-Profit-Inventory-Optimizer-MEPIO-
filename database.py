@@ -139,6 +139,36 @@ def init_database():
         last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # =========================================================================
+    # yj: ADDITIONAL ENTERPRISE RELATIONAL SCHEMA FOR LIVE METRICS DEMO
+    # =========================================================================
+    # 1. System Multipliers Config Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS system_settings (
+        setting_id INTEGER PRIMARY KEY,
+        shopee_fee REAL DEFAULT 5.0,
+        tiktok_fee REAL DEFAULT 5.0,
+        lazada_fee REAL DEFAULT 5.0
+    )''')
+    
+    # 2. Complete Inventory Management Table Schema
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS inventory (
+        item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_name TEXT NOT NULL,
+        stock INTEGER DEFAULT 0,
+        cost_price REAL DEFAULT 0.0
+    )''')
+
+    # 3. Schema Seeding Layer: Seed dynamic configuration record if table cold-started empty
+    cursor.execute("SELECT COUNT(*) FROM system_settings WHERE setting_id=1")
+    if cursor.fetchone()[0] == 0:
+        # Injects default platform deduction percentages to secure operational runtime registers
+        cursor.execute('''
+            INSERT INTO system_settings (setting_id, shopee_fee, tiktok_fee, lazada_fee) 
+            VALUES (1, 5.5, 3.2, 4.0)
+        ''')
+
     # Commit all table schemas to save changes permanently inside the .db file
     conn.commit()
 
