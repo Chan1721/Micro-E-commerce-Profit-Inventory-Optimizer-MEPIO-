@@ -94,6 +94,70 @@ remember_me.place(x=44, y=290)
 forgot_password = CTk.CTkLabel(right, text="Forgot Password?", fg_color="#ffffff", text_color="#3498db", font=("Helvetica", 11, "underline"), cursor="hand2")
 forgot_password.place(x=290, y=290)
 
+def open_forgot_password(event=None):
+    forgot_win = CTk.CTkToplevel(root)
+    forgot_win.title("Password Recovery")
+    forgot_win.geometry("400x420")
+    forgot_win.resizable(False, False)
+    forgot_win.grab_set() 
+
+    CTk.CTkLabel(forgot_win, text="Recover Password", font=("Helvetica", 20, "bold")).place(x=40, y=25)
+
+    # 1. Username
+    CTk.CTkLabel(forgot_win, text="1. Enter your Username", font=("Helvetica", 12, "bold")).place(x=40, y=75)
+    user_recovery_entry = CTk.CTkEntry(forgot_win, width=320, height=35, corner_radius=8)
+    user_recovery_entry.place(x=40, y=100)
+
+    # 2. Security Question
+    CTk.CTkLabel(forgot_win, text="2. Security Question", font=("Helvetica", 12, "bold")).place(x=40, y=150)
+    CTk.CTkLabel(forgot_win, text="Q: What is your favorite pet's name?", font=("Helvetica", 11), text_color="#7a7a7a").place(x=40, y=175)
+    ans_recovery_entry = CTk.CTkEntry(forgot_win, width=320, height=35, corner_radius=8)
+    ans_recovery_entry.place(x=40, y=200)
+
+    # 3. New Password
+    CTk.CTkLabel(forgot_win, text="3. Enter New Password", font=("Helvetica", 12, "bold")).place(x=40, y=250)
+    new_pass_entry = CTk.CTkEntry(forgot_win, width=320, height=35, show="*", corner_radius=8)
+    new_pass_entry.place(x=40, y=275)
+
+    def process_reset():
+        u = user_recovery_entry.get().strip()
+        a = ans_recovery_entry.get().strip()
+        np = new_pass_entry.get().strip()
+
+        if not u or not a or not np:
+            messagebox.showwarning("Warning", "Please fill in all fields!", parent=forgot_win)
+            return
+
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT * FROM users WHERE username=? AND security_answer=?", (u, a))
+            match = cursor.fetchone()
+            
+            if not match:
+                messagebox.showerror("Error", "Invalid Username or Security Answer!", parent=forgot_win)
+                conn.close()
+                return
+                
+            cursor.execute("UPDATE users SET password_hash=? WHERE username=?", (np, u))
+            conn.commit()
+            conn.close()
+            
+            messagebox.showinfo("Success", "Password reset successfully! You can now log in.", parent=forgot_win)
+            forgot_win.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Something went wrong: {e}", parent=forgot_win)
+
+    
+    reset_btn = CTk.CTkButton(forgot_win, text="Update Password", font=("Helvetica", 13, "bold"), fg_color="#e67e22", hover_color="#d35400", width=320, height=40, command=process_reset)
+    reset_btn.place(x=40, y=340)
+
+
+# 👇 把点击动作绑定到你的 "Forgot Password?" 标签上！
+forgot_password.bind("<Button-1>", open_forgot_password)
+
 
 def save_remember_me(username):
     if remember_me.get() == 1:

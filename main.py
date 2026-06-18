@@ -75,6 +75,15 @@ class MEPIOApp(ctk.CTk):
                                 command=lambda k=page_key: self.show_page(k))
             btn.pack(pady=5, padx=10, fill="x")
 
+        spacer = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        spacer.pack(fill="both", expand=True)
+
+        logout_btn = ctk.CTkButton(self.sidebar_frame, text=" ➜]   Logout", 
+                                   fg_color="transparent", text_color=("#475569","#F8FAFC"), hover_color="#e2e8f0",
+                                   font=("Arial", 14, "bold"), anchor="w",
+                                   command=self.execute_logout)
+        logout_btn.pack(pady=20, padx=10, fill="x", side="bottom")    
+
         # --- Page Manager Initialization ---
         self.pages = {}
 
@@ -100,6 +109,20 @@ class MEPIOApp(ctk.CTk):
 
         import sys
         sys.exit(0)
+
+    def execute_logout(self):
+        import sys
+        import subprocess
+        
+        from tkinter import messagebox
+        confirm = messagebox.askyesno("Logout", "Are you sure you want to log out?")
+        
+        if confirm:
+            self.destroy()
+
+            subprocess.Popen([sys.executable, "loginpage.py"])
+            
+            sys.exit(0)    
 
     def show_page(self, page_name):
         # Hide all pages using grid_forget
@@ -195,11 +218,11 @@ class DashboardPage(BasePage):
                           border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                           command=lambda: self.master.show_page("calculator")).pack(pady=8, padx=20, fill="x")
                           
-            ctk.CTkButton(self.action_card, text="🔄 Sync Inventory", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+            ctk.CTkButton(self.action_card, text="🔄 Update Inventory", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
                           border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                           command=lambda: self.master.show_page("inv")).pack(pady=8, padx=20, fill="x")
                           
-            ctk.CTkButton(self.action_card, text="📦 Restock Low Items", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
+            ctk.CTkButton(self.action_card, text="📦 Track Shipments", fg_color="transparent", border_width=1, text_color=("#333333", "#FFFFFF"),
                           border_color=("#D1D1D1", "#444444"), hover_color=("#E5E5E5", "#333333"),
                           command=lambda: self.master.show_page("logistics")).pack(pady=8, padx=20, fill="x")
             
@@ -436,7 +459,7 @@ class DashboardPage(BasePage):
 
     def render_empty_state(self):
         for widget in self.chart_frame.winfo_children():
-            if not isinstance(widget, ctk.CTkLabel): # 保留 Title
+            if not isinstance(widget, ctk.CTkLabel): 
                 widget.destroy()
 
             empty_frame = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
@@ -653,6 +676,9 @@ class LogisticsPage(BasePage):
                 for no, courier in recents:
                     short_courier = courier.split()[0]
                     btn_text = f"{no} ({short_courier})" 
+
+                    item_frame = ctk.CTkFrame(frame, fg_color="transparent")
+                    item_frame.pack(side="left", padx=5)
                     
                     btn = ctk.CTkButton(
                         frame, text=btn_text, fg_color="#F1F5F9", text_color="#3498db", hover_color="#E2E8F0", 
@@ -660,6 +686,13 @@ class LogisticsPage(BasePage):
                         command=lambda q=no, s=courier: self.execute_tracking(q, s, track_type) 
                     )
                     btn.pack(side="left", padx=5)
+
+                    del_btn = ctk.CTkButton(
+                        item_frame, text="✖", width=24, height=24, fg_color="transparent", 
+                        text_color="#e74c3c", hover_color="#f8d7da", font=("Helvetica", 12),
+                        command=lambda q=no: self.delete_recent_tracking(q, track_type)
+                    )
+                    del_btn.pack(side="left")
 
 
         except Exception as e:
@@ -699,6 +732,19 @@ class LogisticsPage(BasePage):
             url = f"https://tracking.my/track/{query}"
             
         webbrowser.open(url)
+
+    def delete_recent_tracking(self, tracking_no, track_type):
+        import sqlite3
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM recent_tracking WHERE tracking_no=?", (tracking_no,))
+            conn.commit()
+            conn.close()
+            
+            self.load_recents(track_type)
+        except Exception as e:
+            print(f"Delete UI Error: {e}")    
 
     def build_carrier_efficiency_ui(self, parent_tab):
         # Header section
@@ -806,22 +852,22 @@ class CalculatorPage(BasePage):
         # Section 1: Product & Platform Details
         ctk.CTkLabel(self.input_frame, text="1. Product & Platform Details", font=("Helvetica", 16, "bold"), text_color="#3498db").pack(pady=(10, 15), anchor="w", padx=20)
 
-        #cwl added
         self.platform_var = ctk.StringVar(value="Shopee")
         p_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent")
         p_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(p_frame, text="Target Platform:", width=180, anchor="w", text_color=("#333333", "#E0E0E0")).pack(side="left")
-        ctk.CTkOptionMenu(p_frame, variable=self.platform_var, values=["Shopee", "TikTok", "Lazada"]).pack(side="right", fill="x", expand=True)
-        #cwl added
-
+        ctk.CTkOptionMenu(p_frame, variable=self.platform_var, values=["Shopee", "TikTok", "Lazada"], command=self.auto_fill_platform_fee).pack(side="right", fill="x", expand=True)
         self.entries = {}
         base_fields = [
             ("Cost Price (RM)", ""),
             ("Selling Price (RM)", ""),
             ("Platform Fee (%)", ""),
-            ("Shipping Fee Paid by Seller (RM)", "")
+            ("Shipping Fee Paid by Seller (RM)", ""),
+            ("Estimated Tax Rate (%)", "0"),     
+            ("Partner Profit Share (%)", "0")
         ]
         self.create_input_fields(base_fields)
+        self.auto_fill_platform_fee(self.platform_var.get())  
 
         ctk.CTkLabel(self.input_frame, text="2. Packaging Cost Breakdown", font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(20, 15), anchor="w", padx=20)
         
@@ -855,8 +901,12 @@ class CalculatorPage(BasePage):
 
         ctk.CTkLabel(self.result_frame, text="Financial Summary", font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=15)
 
-        self.res_net_profit = self.create_result_row("Net Profit:", "RM 0.00", "#27ae60")
-        self.res_roi = self.create_result_row("ROI (%):", "0.00%", "#3498db")
+        self.res_net_profit = self.create_result_row("Gross Profit:", "RM 0.00", "#3498db")
+        self.res_tax = self.create_result_row("Tax Provisioning:", "RM 0.00", "#e74c3c")
+        self.res_share = self.create_result_row("Partner Share:", "RM 0.00", "#e67e22")
+        self.res_final_profit = self.create_result_row("Final Take-Home:", "RM 0.00", "#27ae60")
+        
+        self.res_roi = self.create_result_row("ROI (%):", "0.00%", "#8e44ad")
         self.res_total_packaging = self.create_result_row("Total Packaging Cost:", "RM 0.00", "#e67e22")
         self.res_fees = self.create_result_row("Platform Fees:", "RM 0.00", "#e74c3c")
         
@@ -905,6 +955,8 @@ class CalculatorPage(BasePage):
             package_base = float(self.entries["Base Package Cost (RM)"].get())
             labor = float(self.entries["Labor Cost per Item (RM)"].get())
             buffer = float(self.entries["Other Buffer Cost (RM)"].get())
+            tax_p = float(self.entries["Estimated Tax Rate (%)"].get() or 0) / 100
+            share_p = float(self.entries["Partner Profit Share (%)"].get() or 0) / 100
 
             total_packaging = package_base + labor + buffer
             platform_fee_amount = selling * fee_p
@@ -912,7 +964,16 @@ class CalculatorPage(BasePage):
             net_profit = selling - total_cost
             roi = (net_profit / cost * 100) if cost > 0 else 0
 
-            #cwladd
+            tax_amount = net_profit * tax_p if net_profit > 0 else 0
+            share_amount = (net_profit - tax_amount) * share_p if net_profit > 0 else 0
+            final_takehome = net_profit - tax_amount - share_amount
+
+            # 4. Render output data strings back to UI elements
+            self.res_net_profit.configure(text=f"RM {net_profit:.2f}")
+            self.res_tax.configure(text=f"-RM {tax_amount:.2f}")
+            self.res_share.configure(text=f"-RM {share_amount:.2f}")
+            self.res_final_profit.configure(text=f"RM {final_takehome:.2f}")
+
             selected_platform = self.platform_var.get()
             import sqlite3
             try:
@@ -928,8 +989,7 @@ class CalculatorPage(BasePage):
                 conn.commit()
                 conn.close()
             except Exception as e:
-                print(f"Sync DB Error: {e}")
-            #cwladd    
+                print(f"Sync DB Error: {e}")   
 
             # 4. Render output data strings back to UI elements
             self.res_net_profit.configure(text=f"RM {net_profit:.2f}")
@@ -1040,7 +1100,45 @@ class CalculatorPage(BasePage):
             pass 
         except Exception as e:
             import tkinter.messagebox as messagebox
-            messagebox.showerror("Error", f"System Error: {e}")   
+            messagebox.showerror("Error", f"System Error: {e}")  
+
+    # =========================================================================
+    # CORE LOGIC: Auto-fetch platform fees from database based on selection
+    # =========================================================================
+    def auto_fill_platform_fee(self, platform_choice):
+        import sqlite3
+        import tkinter as tk
+        try:
+            # 1. Connect to DB and get the saved rates
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT shopee_fee, tiktok_fee, lazada_fee FROM system_settings WHERE setting_id=1")
+            row = cursor.fetchone()
+            conn.close()
+            
+            # 2. Safety fallback if DB is empty
+            if row:
+                s_fee, t_fee, l_fee = row
+            else:
+                s_fee, t_fee, l_fee = 5.5, 3.2, 4.0 
+            
+            # 3. Match the selected platform to the correct fee
+            if "Shopee" in platform_choice:
+                fee_val = s_fee
+            elif "TikTok" in platform_choice:
+                fee_val = t_fee
+            elif "Lazada" in platform_choice:
+                fee_val = l_fee
+            else:
+                fee_val = 0.0
+
+            # 4. Magically update the UI entry field
+            if "Platform Fee (%)" in self.entries:
+                self.entries["Platform Fee (%)"].delete(0, tk.END)
+                self.entries["Platform Fee (%)"].insert(0, str(fee_val))
+                
+        except Exception as e:
+            print(f"Auto-fill fee error: {e}")         
 
 
 class AnalyticsPage(BasePage):
