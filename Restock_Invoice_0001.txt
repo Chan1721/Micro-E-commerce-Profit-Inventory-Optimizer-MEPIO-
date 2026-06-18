@@ -1,0 +1,15 @@
+=========================================
+          MEPIO RESTOCK INVOICE          
+=========================================
+Date       : 2026-06-16 10:41 AM
+Invoice No : INV-RESTOCK-104127
+Supplier   : Mr Haircomb supply center
+-----------------------------------------
+SKU        : 0001
+Item Name  : haircomb
+Quantity   : 100 Units
+Unit Cost  : RM 1.10
+-----------------------------------------
+TOTAL AMOUNT DUE: RM 110.00
+=========================================
+Status: System Recorded & Reconciled
