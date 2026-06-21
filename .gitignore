@@ -2,7 +2,8 @@
 mepio_system.db
 remember_user.json
 
-# Ignore Python cache (这些也是不需要上传的垃圾文件)
+# Ignore Python cache 
 __pycache__/
 *.pyc
 .DS_Store
+Restock_Invoice_*.txt
