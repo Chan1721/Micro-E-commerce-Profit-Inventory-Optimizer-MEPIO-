@@ -2,7 +2,9 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
-
+import os
+import datetime
+import subprocess
 
 class InventoryPage(ctk.CTkFrame):
     def __init__(self, parent, controller=None):
@@ -105,6 +107,22 @@ class InventoryPage(ctk.CTkFrame):
             fg_color="#4F6EF7", hover_color="#3B55D4",
             font=("Arial", 13, "bold"), width=150, height=36, corner_radius=8
         ).pack(side="left")
+
+        # 👇 NEW FEATURE: Print Restock Invoice Popup Button
+        ctk.CTkButton(
+            btn_frame, text="📄  Print Restock Invoice",
+            command=self.open_invoice_popup,
+            fg_color="#8e44ad", hover_color="#732d91",
+            font=("Arial", 13, "bold"), width=190, height=36, corner_radius=8
+        ).pack(side="left", padx=(10, 0))
+
+        # 👇 NEW FEATURE: Open the local folder to view saved invoices
+        ctk.CTkButton(
+            btn_frame, text="📂  View Saved Invoices",
+            command=self.open_invoice_folder,
+            fg_color="#34495e", hover_color="#2c3e50",
+            font=("Arial", 13, "bold"), width=190, height=36, corner_radius=8
+        ).pack(side="left", padx=(10, 0))
 
         # ── Stock Table Card ─────────────────────────────────────────────────
         stock_card = ctk.CTkFrame(self, corner_radius=12,
@@ -548,3 +566,131 @@ class InventoryPage(ctk.CTkFrame):
     def update_listbox_theme(self):
         # No-op: theme is now handled via CTk fg_color tuples
         pass
+
+    # =========================================================================
+    # NEW FEATURE: Restock Invoice Generator & UI Popup Engine
+    # =========================================================================
+    def open_invoice_popup(self):
+        # 1. Grab current values from the inventory UI input fields
+        item_name = self.entry_item.get().strip()
+        item_code = self.entry_code.get().strip()
+        qty_str = self.entry_qty.get().strip()
+
+        # 2. Block the popup if the user hasn't filled in the basic product details
+        if not item_name or not item_code or not qty_str:
+            messagebox.showwarning("Missing Details", "Please enter Item Name, Code/SKU, and Quantity first before printing an invoice.")
+            return
+
+        try:
+            qty = int(qty_str)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Quantity must be a valid number.")
+            return
+
+        # 3. Create the modern popup window (Toplevel)
+        self.invoice_win = ctk.CTkToplevel(self)
+        self.invoice_win.title("Generate Supplier Invoice")
+        self.invoice_win.geometry("400x350")
+        self.invoice_win.grab_set()  # Focus locks on this popup
+        self.invoice_win.resizable(False, False)
+
+        # 4. Render popup UI components
+        ctk.CTkLabel(self.invoice_win, text="Supplier Details", font=("Arial", 16, "bold"), text_color="#8e44ad").pack(pady=(20, 10))
+        ctk.CTkLabel(self.invoice_win, text=f"Product: {item_name} [{item_code}]\nRestock Qty: {qty} units", font=("Arial", 12)).pack(pady=(0, 15))
+
+        # Supplier Name Input
+        ctk.CTkLabel(self.invoice_win, text="Supplier Company Name:", font=("Arial", 12, "bold")).pack(anchor="w", padx=40)
+        self.ent_supplier = ctk.CTkEntry(self.invoice_win, placeholder_text="e.g., China Plastic Factory", width=320)
+        self.ent_supplier.pack(pady=(5, 15))
+
+        # Unit Cost Input
+        ctk.CTkLabel(self.invoice_win, text="Unit Cost Price (RM):", font=("Arial", 12, "bold")).pack(anchor="w", padx=40)
+        self.ent_unit_cost = ctk.CTkEntry(self.invoice_win, placeholder_text="e.g., 2.50", width=320)
+        self.ent_unit_cost.pack(pady=(5, 20))
+
+        # Action Button to generate the TXT
+        btn_generate = ctk.CTkButton(
+            self.invoice_win, 
+            text="Generate & Print Invoice", 
+            fg_color="#27ae60", hover_color="#219150", 
+            font=("Arial", 13, "bold"),
+            command=lambda: self.generate_txt_invoice(item_code, item_name, qty)
+        )
+        btn_generate.pack()
+
+    def generate_txt_invoice(self, sku, name, qty):
+        # 1. Retrieve the manual supplier inputs
+        supplier_name = self.ent_supplier.get().strip()
+        cost_str = self.ent_unit_cost.get().strip()
+
+        if not supplier_name or not cost_str:
+            messagebox.showwarning("Missing Details", "Please fill in all supplier information.", parent=self.invoice_win)
+            return
+
+        try:
+            unit_cost = float(cost_str)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Unit Cost must be a valid decimal/number.", parent=self.invoice_win)
+            return
+
+        # 2. Calculate the grand total
+        total_amount = qty * unit_cost
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p")
+        invoice_no = f"INV-RESTOCK-{datetime.datetime.now().strftime('%H%M%S')}"
+
+        # 3. Construct the highly professional invoice string
+        invoice_content = f"""=========================================
+          MEPIO RESTOCK INVOICE          
+=========================================
+Date       : {current_date}
+Invoice No : {invoice_no}
+Supplier   : {supplier_name}
+-----------------------------------------
+SKU        : {sku}
+Item Name  : {name}
+Quantity   : {qty} Units
+Unit Cost  : RM {unit_cost:.2f}
+-----------------------------------------
+TOTAL AMOUNT DUE: RM {total_amount:.2f}
+=========================================
+Status: System Recorded & Reconciled
+"""
+        
+        # 4. Save to a local TXT file
+        filename = f"Restock_Invoice_{sku}.txt"
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(invoice_content)
+
+        # 5. Automatically open the file using macOS or Windows system commands
+        import sys
+        try:
+            if sys.platform == "darwin":  # macOS detected
+                subprocess.run(['open', filename])
+            else:  # Windows fallback
+                os.startfile(filename)
+        except Exception as e:
+            print(f"Failed to auto-open file: {e}")
+
+        # 6. Close the popup and notify user
+        self.invoice_win.destroy()
+        messagebox.showinfo("Success", f"Invoice generated and opened automatically!\nSaved locally as: {filename}")
+
+    # =========================================================================
+    # NEW FEATURE: Auto-open system file explorer to view past invoices
+    # =========================================================================
+    def open_invoice_folder(self):
+        import os
+        import sys
+        import subprocess
+        
+        try:
+            current_dir = os.getcwd()
+            
+            # macOS
+            if sys.platform == "darwin":  
+                subprocess.run(['open', current_dir])
+            else:  # windows fallback
+                os.startfile(current_dir)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open folder: {e}")    
