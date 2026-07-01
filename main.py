@@ -580,7 +580,6 @@ class LogisticsPage(BasePage):
         self.build_carrier_efficiency_ui(self.tab_carrier)
 
     def init_recent_db(self):
-        import sqlite3
         try:
             conn = sqlite3.connect('mepio_system.db')
             cursor = conn.cursor()
