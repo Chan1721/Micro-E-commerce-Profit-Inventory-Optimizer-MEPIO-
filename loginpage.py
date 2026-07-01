@@ -82,10 +82,10 @@ def toggle_password():
         password_entry.configure(show="*")
 
 show_password_cb = CTk.CTkCheckBox(
-    right, text="Show", width=50, height=20, font=("Helvetica", 11), border_width=2,fg_color="#3498db",  
+    right, text="Show", width=50, height=20, font=("Helvetica", 11), border_width=2,fg_color="#3498db",  bg_color="#fcfcfc",
     command=toggle_password
 )
-show_password_cb.place(x=330, y=210)        
+show_password_cb.place(x=320, y=247)        
 
 
 remember_me = CTk.CTkCheckBox(right, text="Remember me", bg_color="#ffffff", text_color="#1a1a1a", font=("Helvetica", 11), hover_color="#f0f4ff", border_width=2)
@@ -155,7 +155,6 @@ def open_forgot_password(event=None):
     reset_btn.place(x=40, y=340)
 
 
-# 👇 把点击动作绑定到你的 "Forgot Password?" 标签上！
 forgot_password.bind("<Button-1>", open_forgot_password)
 
 
@@ -197,7 +196,6 @@ def handle_login():
             save_remember_me(username)
             root.after(200, root.quit)  # Close the login window after a short delay to allow the success message to show
         else:
-            # 账号或密码对不上
             messagebox.showerror("Error", "Wrong username or password!")
             
     except Exception as e:

@@ -132,6 +132,19 @@ class MEPIOApp(ctk.CTk):
         # Display selected page in the main container area
         self.pages[page_name].grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
+    def refresh_all_charts(self):
+        dash_page = self.pages.get("dash")
+        if dash_page is not None:
+            dash_page.load_benchmark_data()
+
+        logistics_page = self.pages.get("logistics")
+        if logistics_page is not None and getattr(logistics_page, "_carrier_chart_frame_ref", None) is not None:
+            logistics_page.render_carrier_chart(logistics_page._carrier_chart_frame_ref)
+
+        analytics_page = self.pages.get("analytics")
+        if analytics_page is not None:
+            analytics_page.execute_restock_analysis()    
+
 class BasePage(ctk.CTkFrame):
     """Template class for all pages to ensure UI consistency."""
     def __init__(self, parent, controller):
@@ -202,7 +215,7 @@ class DashboardPage(BasePage):
         ctk.CTkLabel(self.chart_frame, text="Platform Benchmarking", font=("Arial", 16, "bold")).pack(pady=(15, 0), anchor="w", padx=20)
         ctk.CTkLabel(self.chart_frame, text="Revenue · Net profit · Platform fees", font=("Arial", 12), text_color="gray").pack(anchor="w", padx=20)
 
-        self.load_benchmark_data() # 启动动态读取
+        self.load_benchmark_data() 
 
 
         # --- Right Side: Vertical Quick Actions ---
@@ -252,6 +265,29 @@ class DashboardPage(BasePage):
             self.save_fee_btn.pack(pady=(5, 10), padx=15, fill="x")
 
             self.is_accordion_open = False
+
+            
+            status_box = ctk.CTkFrame(self.action_card, fg_color=("#F1F5F9", "#1D1E1F"), corner_radius=8)
+            status_box.pack(side="bottom", fill="x", padx=15, pady=20)
+
+            spacer = ctk.CTkFrame(self.action_card, fg_color="transparent")
+            spacer.pack(side="bottom", fill="both", expand=True)
+
+            ctk.CTkLabel(status_box, text="⚙️ System Status", font=("Arial", 12, "bold"), text_color=("#333333", "#E0E0E0")).pack(anchor="w", padx=12, pady=(12, 0))
+
+            status_row = ctk.CTkFrame(status_box, fg_color="transparent")
+            status_row.pack(fill="x", padx=12, pady=6)
+            
+            ctk.CTkLabel(status_row, text="🟢", font=("Arial", 10)).pack(side="left")
+            ctk.CTkLabel(status_row, text="All services operational", font=("Arial", 11, "bold"), text_color="#27ae60").pack(side="left", padx=6)
+
+            import datetime
+            current_date = datetime.datetime.now().strftime("%d %b %Y")
+            
+            ctk.CTkLabel(status_box, text=f"MEPIO Core v1.0.0", font=("Arial", 10), text_color="gray").pack(anchor="w", padx=12)
+            ctk.CTkLabel(status_box, text=f"Last Backup: {current_date}", font=("Arial", 10), text_color="gray").pack(anchor="w", padx=12, pady=(0, 12))
+
+
       
     def fetch_live_dashboard_metrics(self):
         """Queries multiple database relations to dynamically compute live summary telemetry numbers."""
@@ -314,6 +350,10 @@ class DashboardPage(BasePage):
             pass
 
         return total_orders, total_revenue, low_stock_count, total_platform_fees
+    
+    def on_page_show(self, event):
+        if event.widget == self:
+            self.load_benchmark_data()
 
     # === (Live Analytics Sync Pipelines) ===
     def on_page_refresh(self, event):
@@ -336,7 +376,7 @@ class DashboardPage(BasePage):
             self.accordion_frame.pack_forget()  
             self.is_accordion_open = False
         else:
-            self.accordion_frame.pack(pady=5, padx=20, fill="x")  
+            self.accordion_frame.pack(pady=5, padx=20, fill="x", after=self.fee_btn)  
             self.is_accordion_open = True
 
     def save_fees_inline(self):       
@@ -602,6 +642,10 @@ class LogisticsPage(BasePage):
         self.build_tracking_ui(self.tab_out, "Outbound", "e.g., 620000000000 (J&T)")
         self.build_carrier_efficiency_ui(self.tab_carrier)
 
+    def on_page_show(self, event):
+        if event.widget == self and getattr(self, "_carrier_chart_frame_ref", None) is not None:
+            self.render_carrier_chart(self._carrier_chart_frame_ref)
+
     def init_recent_db(self):
         import sqlite3
         try:
@@ -786,6 +830,7 @@ class LogisticsPage(BasePage):
         # Chart frame
         chart_frame = ctk.CTkFrame(chart_outer, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
         chart_frame.pack(fill="both", expand=True)
+        self._carrier_chart_frame_ref = chart_frame
         self.render_carrier_chart(chart_frame)
 
         ctk.CTkLabel(parent_tab,
@@ -1318,6 +1363,7 @@ class SettingsPage(BasePage):
             ctk.set_appearance_mode("dark")
         else:
             ctk.set_appearance_mode("light")
+        self.master.refresh_all_charts()    
 
 class HelpPage(BasePage):
     def __init__(self, parent, controller):
