@@ -160,6 +160,24 @@ def init_database():
         cost_price REAL DEFAULT 0.0
     )''')
 
+    # =========================================================================
+    # SYSTEM SETTINGS TABLE (Global Configuration & View Persistence)
+    # =========================================================================
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS system_settings (
+        setting_id INTEGER PRIMARY KEY CHECK (setting_id = 1),
+        shopee_fee REAL DEFAULT 5.5,
+        tiktok_fee REAL DEFAULT 3.2,
+        lazada_fee REAL DEFAULT 4.0,
+        default_view TEXT DEFAULT 'Dashboard'  -- 新增字段：用于记住用户下次打开时的首选视图
+    )''')
+    
+    # use INSERT OR IGNORE to ensure that the default configuration is only inserted if it doesn't already exist
+    cursor.execute('''
+    INSERT OR IGNORE INTO system_settings (setting_id, shopee_fee, tiktok_fee, lazada_fee, default_view) 
+    VALUES (1, 5.5, 3.2, 4.0, 'Dashboard')
+    ''')
+
     # 3. Schema Seeding Layer: Seed dynamic configuration record if table cold-started empty
     cursor.execute("SELECT COUNT(*) FROM system_settings WHERE setting_id=1")
     if cursor.fetchone()[0] == 0:

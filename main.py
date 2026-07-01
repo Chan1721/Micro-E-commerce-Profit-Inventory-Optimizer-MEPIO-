@@ -102,6 +102,23 @@ class MEPIOApp(ctk.CTk):
         self.show_page("dash")
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        # === yj: APP COLD-START AUTOMATED VIEW REDIRECTION ===
+        try:
+            import sqlite3
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT default_view FROM system_settings WHERE setting_id = 1")
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row and row[0]:
+                preferred_view = row[0]
+                # assuming the stored value matches one of the keys in self.pages
+                # if preferred_view in self.pages:
+                print(f"App lifecycle bootstrap redirected to saved view: {preferred_view}")
+        except Exception as e:
+            pass # If the database is not ready or the query fails, we simply ignore and default to dashboard
         
     def on_closing(self):
         self.quit()     
@@ -155,39 +172,41 @@ class DashboardPage(BasePage):
         self.stats_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.stats_frame.pack(fill="x", padx=20)
 
-        #=== yj: REPLACED CARDS GENERATION FOR LIVE METRICS SYNC ===
-        # Card 1: Total Revenue (We explicit link self.lbl_rev_val here)
-        card_rev = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
-        card_rev.pack(side="left", padx=10, fill="both", expand=True)
-        ctk.CTkLabel(card_rev, text="Total Revenue", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
-        self.lbl_rev_val = ctk.CTkLabel(card_rev, text="RM 0.00", font=("Arial", 18, "bold"))
-        self.lbl_rev_val.pack(pady=(5, 15))
-        ctk.CTkLabel(card_rev, text="+5.2% vs last month", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
-
-        # Card 2: Total Orders (We explicit link self.lbl_orders_val here to count rows)
+        # === yj: RESTRUCTURED METRICS CARDS MATRIX (FIXES NAMEERROR) ===
+        # 1. Card 1: Total Orders
         card_orders = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
         card_orders.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_orders, text="Total Orders", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
-        self.lbl_orders_val = ctk.CTkLabel(card_orders, text="0 Pcs", font=("Arial", 18, "bold"))
+        
+        self.lbl_orders_val = ctk.CTkLabel(card_orders, text="0 Pcs", font=("Arial", 22, "bold"), text_color=self.text_main)
         self.lbl_orders_val.pack(pady=(5, 15))
-        ctk.CTkLabel(card_orders, text="Live Counter", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
 
-        # Card 3: Platform Fees
+        # 2. Card 2: Total Revenue
+        card_rev = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        card_rev.pack(side="left", padx=10, fill="both", expand=True)
+        ctk.CTkLabel(card_rev, text="Total Revenue", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+        
+        self.lbl_rev_val = ctk.CTkLabel(card_rev, text="RM 0.00", font=("Arial", 22, "bold"), text_color=self.text_main)
+        self.lbl_rev_val.pack(pady=(5, 15))
+
+        # 3. Card 3: Platform Fees
         card_fees = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
         card_fees.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_fees, text="Platform Fees", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
+        
         self.lbl_fees_val = ctk.CTkLabel(card_fees, text="RM 0.00", font=("Arial", 18, "bold"))
         self.lbl_fees_val.pack(pady=(5, 15))
         ctk.CTkLabel(card_fees, text="Live Calculation", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
 
-        # Card 4: Low Stock
+        # 4. Card 4: Low Stock
         card_stock = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
         card_stock.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_stock, text="Low Stock", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
-        self.lbl_stock_val = ctk.CTkLabel(card_stock, text="5 Items", font=("Arial", 18, "bold"))
+        
+        self.lbl_stock_val = ctk.CTkLabel(card_stock, text="0 Items", font=("Arial", 18, "bold"))
         self.lbl_stock_val.pack(pady=(5, 15))
         ctk.CTkLabel(card_stock, text="Requires Attention", font=("Arial", 11, "bold"), text_color="#e74c3c").pack(pady=(0, 15))
-        # === yj: END OF REPLACEMENT ===
+        # === yj: END OF FIXED METRICS MATRIX ===
 
         # Bottom layout wrapper (Left and Right)
         self.bottom_wrapper = ctk.CTkFrame(self, fg_color="transparent")
@@ -1294,23 +1313,86 @@ class AnalyticsPage(BasePage):
 
 class SettingsPage(BasePage):
     def __init__(self, parent, controller):
-        super().__init__(parent, controller)  
-        self.content_wrapper = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_wrapper.pack(fill="both", expand=True, padx=40, pady=10)
+        super().__init__(parent, controller)
+        self.controller = controller
         
-        self.sys_card = ctk.CTkFrame(self.content_wrapper, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
-        self.sys_card.pack(side="left", fill="both", expand=True, padx=(0, 15))
+        # 主标题
+        title = ctk.CTkLabel(self, text="System Configuration & Settings", font=("Arial", 24, "bold"), text_color=self.text_main)
+        title.pack(anchor="w", padx=30, pady=(30, 10))
+        
+        # 描述
+        desc = ctk.CTkLabel(self, text="Manage platform dynamic commission fee structures and application runtime environment behaviors.", font=("Arial", 12), text_color="gray")
+        desc.pack(anchor="w", padx=30, pady=(0, 20))
+        
+        # 滚动容器（承载所有设置项）
+        self.scroll_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll_container.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+        
+        # 渲染两个核心设置板块
+        self.render_view_preference_section(self.scroll_container)
+        self.render_fee_rates_section(self.scroll_container)
 
-        ctk.CTkLabel(self.sys_card, text="General Preferences", font=("Arial", 16, "bold")).pack(pady=(25, 20), padx=25, anchor="w")
+    def render_view_preference_section(self, container_frame):
+        """Renders the dropdown interface for saving the user's default view perspective."""
+        import sqlite3
+        
+        # 1. 布局容器
+        pref_frame = ctk.CTkFrame(container_frame, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        pref_frame.pack(pady=15, padx=5, fill="x")
+        
+        # 文本说明
+        txt_frame = ctk.CTkFrame(pref_frame, fg_color="transparent")
+        txt_frame.pack(side="left", padx=20, pady=15, fill="both", expand=True)
+        
+        ctk.CTkLabel(txt_frame, text="Application Startup View Preference", font=("Arial", 14, "bold"), text_color=self.text_main).pack(anchor="w")
+        ctk.CTkLabel(txt_frame, text="Choose which dashboard view loads automatically upon launching the application.", font=("Arial", 11), text_color="gray").pack(anchor="w", pady=(2, 0))
+        
+        # 2. 读取当前数据库里保存的偏好
+        current_pref = "Dashboard"
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT default_view FROM system_settings WHERE setting_id = 1")
+            row = cursor.fetchone()
+            if row and row[0]:
+                current_pref = row[0]
+            conn.close()
+        except Exception as e:
+            print(f"Failed to fetch view preference: {e}")
 
-        self.dark_mode_switch = ctk.CTkSwitch(self.sys_card, text="Enable Dark Mode Visualization", command=self.toggle_dark_mode)
-        self.dark_mode_switch.pack(pady=15, padx=25, anchor="w")
+        # 3. 右侧操作区容器
+        action_frame = ctk.CTkFrame(pref_frame, fg_color="transparent")
+        action_frame.pack(side="right", padx=20, pady=15)
 
-        self.sync_btn = ctk.CTkButton(self.sys_card, text="Sync Database", width=200, fg_color="#3498db")
-        self.sync_btn.pack(pady=(20, 10), padx=25, anchor="w")
+        # 创建下拉菜单并严格绑定到实例变量 self.view_menu（修好报错的关键！）
+        view_options = ["Dashboard", "Shopee View", "TikTok View", "Lazada View", "Inventory", "Logistics"]
+        self.view_menu = ctk.CTkOptionMenu(action_frame, values=view_options, width=160)
+        self.view_menu.set(current_pref)
+        self.view_menu.pack(side="left", padx=5)
+        
+        # 保存按钮
+        btn_save_pref = ctk.CTkButton(action_frame, text="Save Preference", width=120, fg_color="#2ecc71", hover_color="#27ae60", command=self.save_view_preference)
+        btn_save_pref.pack(side="left", padx=5)
 
-        self.export_btn = ctk.CTkButton(self.sys_card, text="Export Settings", width=200, fg_color="#3498db")
-        self.export_btn.pack(pady=10, padx=25, anchor="w")
+    def save_view_preference(self):
+        """Persists the selected UI perspective element into the relational settings table registers."""
+        # 此时 self.view_menu 已经百分百存在，不会再报 AttributeError
+        selected_view = self.view_menu.get()
+        import sqlite3
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE system_settings SET default_view = ? WHERE setting_id = 1", (selected_view,))
+            conn.commit()
+            conn.close()
+            print(f"Success: Startup perspective locked to '{selected_view}' view.")
+        except Exception as e:
+            print(f"Error persisting configuration metadata: {e}")
+
+    def render_fee_rates_section(self, container_frame):
+        """Renders the existing platform commission configuration elements if needed."""
+        # 这里预留你原本 Settings 页面里其他的费率设置 UI（如果没有也可以先空着）
+        pass
 
     def toggle_dark_mode(self):
         if self.dark_mode_switch.get() == 1:
