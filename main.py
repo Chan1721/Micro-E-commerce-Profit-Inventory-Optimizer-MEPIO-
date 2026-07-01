@@ -106,21 +106,49 @@ class MEPIOApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # === yj: APP COLD-START AUTOMATED VIEW REDIRECTION ===
+        # Query the persistence storage matrix to retrieve user startup perspective preference
+        init_geometry = "1100x650"  # Default fallback dimensions
+        target_page_key = "dash"    # Default fallback page token
+        
         try:
             import sqlite3
             conn = sqlite3.connect('mepio_system.db')
             cursor = conn.cursor()
-            cursor.execute("SELECT default_view FROM system_settings WHERE setting_id = 1")
+            # Fetch both configuration metrics concurrently in a single pipeline query
+            cursor.execute("SELECT default_view, app_geometry FROM system_settings WHERE setting_id = 1")
             row = cursor.fetchone()
             conn.close()
             
-            if row and row[0]:
-                preferred_view = row[0]
-                # assuming the stored value matches one of the keys in self.pages
-                # if preferred_view in self.pages:
-                print(f"App lifecycle bootstrap redirected to saved view: {preferred_view}")
-        except Exception as e:
-            pass # If the database is not ready or the query fails, we simply ignore and default to dashboard
+            if row:
+                # 1. Parse and map the view preference safely
+                if row[0]:
+                    preferred_view = row[0]
+                    view_mapping = {
+                        "Dashboard": "dash",
+                        "Shopee View": "shopee",
+                        "TikTok View": "tiktok",
+                        "Lazada View": "lazada",
+                        "Inventory": "inventory",
+                        "Logistics": "logistics"
+                    }
+                    target_page_key = view_mapping.get(preferred_view, "dash")
+                    print(f"Bootstrap Log: Startup view locked to token '{target_page_key}'")
+                
+                # 2. Parse and map the geometry dimension token securely (Fixes row[0] cross-assignment bug)
+                if len(row) > 1 and row[1]:
+                    init_geometry = row[1]
+                    print(f"Bootstrap Log: Window resolution initialized to '{init_geometry}'")
+
+            # Route the initial window lifecycle layer directly to target configurations
+            self.geometry(init_geometry)
+            self.show_page(target_page_key)
+
+        except Exception as bootstrap_fault:
+            # Safe operational fallback execution track to insulate core engine from crashes
+            print(f"Subsystem Bootstrap Exception - Defaults enforced: {bootstrap_fault}")
+            self.geometry("1100x650")
+            self.show_page("dash")
+        # === yj: END OF INTEGRATED REDIRECTION LAYER ===
         
     def on_closing(self):
         self.quit()     
@@ -1317,44 +1345,38 @@ class AnalyticsPage(BasePage):
 
 class SettingsPage(BasePage):
     def __init__(self, parent, controller):
-        super().__init__(parent, controller)
+        super().__init__(parent, controller) 
         self.controller = controller
-        self.text_main = ("#1E293B", "#F1F5F9")
         
-        # 主标题
-        title = ctk.CTkLabel(self, text="System Configuration & Settings", font=("Arial", 24, "bold"), text_color=self.text_main)
-        title.pack(anchor="w", padx=30, pady=(30, 10))
-        
-        # 描述
-        desc = ctk.CTkLabel(self, text="Manage platform dynamic commission fee structures and application runtime environment behaviors.", font=("Arial", 12), text_color="gray")
-        desc.pack(anchor="w", padx=30, pady=(0, 20))
-        
-        # 滚动容器（承载所有设置项）
-        self.scroll_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.scroll_container.pack(fill="both", expand=True, padx=30, pady=(0, 20))
-        
-        # 渲染两个核心设置板块
-        self.render_view_preference_section(self.scroll_container)
-        self.render_fee_rates_section(self.scroll_container)
+        # Safe fallback text color adaptive to dark/light theme
+        safe_text_color = ("#1A1A1A", "#F0F0F0")
 
-    def render_view_preference_section(self, container_frame):
-        """Renders the dropdown interface for saving the user's default view perspective."""
-        import sqlite3
+        # 1. Main Layout Containers
+        self.content_wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_wrapper.pack(fill="both", expand=True, padx=40, pady=10)
         
-        # 1. 布局容器
-        pref_frame = ctk.CTkFrame(container_frame, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
-        pref_frame.pack(pady=15, padx=5, fill="x")
+        # === yj: ADDED SCROLLABLE FRAME CONDUIT FOR UNLIMITED SETTINGS EXTENSION ===
+        # Replaced normal Frame with CTkScrollableFrame to allow smooth mouse-wheel scrolling
+        self.scroll_container = ctk.CTkScrollableFrame(self.content_wrapper, fg_color="transparent")
+        self.scroll_container.pack(fill="both", expand=True)
+
+        self.sys_card = ctk.CTkFrame(self.scroll_container, corner_radius=12, fg_color=("#FFFFFF", "#2B2B2B"))
+        self.sys_card.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Title Headings inside your card
+        ctk.CTkLabel(self.sys_card, text="General Preferences & Marketplace Config", font=("Arial", 16, "bold"), text_color=safe_text_color).pack(pady=(25, 15), padx=25, anchor="w")
+
+        # 2. Original Interactive Switches (Your original switch preserved)
+        self.dark_mode_switch = ctk.CTkSwitch(self.sys_card, text="Enable Dark Mode Visualization", command=lambda: self.toggle_dark_mode())
+        self.dark_mode_switch.pack(pady=10, padx=25, anchor="w")
+
+        # 3. ADDED COMPONENT A: Application Startup View Dropdown
+        ctk.CTkLabel(self.sys_card, text="Startup Default View Viewport:", font=("Arial", 12, "bold"), text_color=safe_text_color).pack(pady=(15, 2), padx=25, anchor="w")
         
-        # 文本说明
-        txt_frame = ctk.CTkFrame(pref_frame, fg_color="transparent")
-        txt_frame.pack(side="left", padx=20, pady=15, fill="both", expand=True)
-        
-        ctk.CTkLabel(txt_frame, text="Application Startup View Preference", font=("Arial", 14, "bold"), text_color=self.text_main).pack(anchor="w")
-        ctk.CTkLabel(txt_frame, text="Choose which dashboard view loads automatically upon launching the application.", font=("Arial", 11), text_color="gray").pack(anchor="w", pady=(2, 0))
-        
-        # 2. 读取当前数据库里保存的偏好
+        # Safely fetch persistent perspective preference token from local DB storage registers
         current_pref = "Dashboard"
         try:
+            import sqlite3
             conn = sqlite3.connect('mepio_system.db')
             cursor = conn.cursor()
             cursor.execute("SELECT default_view FROM system_settings WHERE setting_id = 1")
@@ -1362,29 +1384,102 @@ class SettingsPage(BasePage):
             if row and row[0]:
                 current_pref = row[0]
             conn.close()
-        except Exception as e:
-            print(f"Failed to fetch view preference: {e}")
+        except Exception:
+            pass
 
-        # 3. 右侧操作区容器
-        action_frame = ctk.CTkFrame(pref_frame, fg_color="transparent")
-        action_frame.pack(side="right", padx=20, pady=15)
-
-        # 创建下拉菜单并严格绑定到实例变量 self.view_menu（修好报错的关键！）
+        # Build dropdown interface frame wrapper mapping target view keys safely
         view_options = ["Dashboard", "Shopee View", "TikTok View", "Lazada View", "Inventory", "Logistics"]
-        self.view_menu = ctk.CTkOptionMenu(action_frame, values=view_options, width=160)
+        self.view_menu = ctk.CTkOptionMenu(self.sys_card, values=view_options, width=220)
         self.view_menu.set(current_pref)
-        self.view_menu.pack(side="left", padx=5)
-        
-        # 保存按钮
-        btn_save_pref = ctk.CTkButton(action_frame, text="Save Preference", width=120, fg_color="#2ecc71", hover_color="#27ae60", command=self.save_view_preference)
-        btn_save_pref.pack(side="left", padx=5)
+        self.view_menu.pack(pady=(0, 15), padx=25, anchor="w")
 
+        # 4. ADDED COMPONENT B: Restored Platform Commission Fee Input Entries
+        ctk.CTkLabel(self.sys_card, text="Marketplace Commission Fee Percentages (%):", font=("Arial", 12, "bold"), text_color=safe_text_color).pack(pady=(10, 5), padx=25, anchor="w")
+
+        # Load dynamic multipliers parameters initialization row values safely
+        shopee_val, tiktok_val, lazada_val = "5.5", "3.2", "4.0"
+        try:
+            import sqlite3
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT shopee_fee, tiktok_fee, lazada_fee FROM system_settings WHERE setting_id = 1")
+            row = cursor.fetchone()
+            if row:
+                shopee_val = str(row[0])
+                tiktok_val = str(row[1])
+                lazada_val = str(row[2])
+            conn.close()
+        except Exception:
+            pass
+
+        # Horizontal alignment row stack configuration for Shopee entry form nodes
+        row_shopee = ctk.CTkFrame(self.sys_card, fg_color="transparent")
+        row_shopee.pack(fill="x", padx=25, pady=3)
+        ctk.CTkLabel(row_shopee, text="Shopee Rate:", font=("Arial", 12), text_color=safe_text_color, width=100, anchor="w").pack(side="left")
+        self.ent_shopee = ctk.CTkEntry(row_shopee, width=100)
+        self.ent_shopee.insert(0, shopee_val)
+        self.ent_shopee.pack(side="left")
+
+        # Horizontal alignment row stack configuration for TikTok entry form nodes
+        row_tiktok = ctk.CTkFrame(self.sys_card, fg_color="transparent")
+        row_tiktok.pack(fill="x", padx=25, pady=3)
+        ctk.CTkLabel(row_tiktok, text="TikTok Rate:", font=("Arial", 12), text_color=safe_text_color, width=100, anchor="w").pack(side="left")
+        self.ent_tiktok = ctk.CTkEntry(row_tiktok, width=100)
+        self.ent_tiktok.insert(0, tiktok_val)
+        self.ent_tiktok.pack(side="left")
+
+        # Horizontal alignment row stack configuration for Lazada entry form nodes
+        row_lazada = ctk.CTkFrame(self.sys_card, fg_color="transparent")
+        row_lazada.pack(fill="x", padx=25, pady=3)
+        ctk.CTkLabel(row_lazada, text="Lazada Rate:", font=("Arial", 12), text_color=safe_text_color, width=100, anchor="w").pack(side="left")
+        self.ent_lazada = ctk.CTkEntry(row_lazada, width=100)
+        self.ent_lazada.insert(0, lazada_val)
+        self.ent_lazada.pack(side="left")
+
+        # 5. Original Bottom Operational Buttons (Your original buttons preserved)
+        self.sync_btn = ctk.CTkButton(self.sys_card, text="Sync Database", width=200, fg_color="#3498db")
+        self.sync_btn.pack(pady=(25, 10), padx=25, anchor="w")
+
+        self.export_btn = ctk.CTkButton(self.sys_card, text="Export Settings", width=200, fg_color="#3498db")
+        self.export_btn.pack(pady=10, padx=25, anchor="w")
+
+        # 6. APP WINDOW RESOLUTION PREFERENCE INTERFACE
+        ctk.CTkLabel(self.sys_card, text="Application Window Resolution:", font=("Arial", 12, "bold"), text_color=safe_text_color).pack(pady=(15, 2), padx=25, anchor="w")
+        
+        # Safe database query to retrieve active persistent geometry configuration
+        current_geo = "1100x650"
+        try:
+            import sqlite3
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT app_geometry FROM system_settings WHERE setting_id = 1")
+            row = cursor.fetchone()
+            if row and row[0]:
+                current_geo = row[0]
+            conn.close()
+        except Exception:
+            pass
+
+        # Resolution preset matrix mappings
+        geo_options = ["1100x650 (Default)", "1280x720 (HD)", "1440x900", "1600x900", "1920x1080 (FHD)"]
+        self.geo_menu = ctk.CTkOptionMenu(self.sys_card, values=geo_options, width=220)
+        
+        # Set the visual text to match saved layout config securely
+        matching_ui_text = next((opt for opt in geo_options if current_geo in opt), "1100x650 (Default)")
+        self.geo_menu.set(matching_ui_text)
+        self.geo_menu.pack(pady=(0, 25), padx=25, anchor="w")
+
+        # === yj: ADDED GLOBAL MASTER SAVE BUTTON AT THE BOTTOM ===
+        # This button dispatches a transaction that saves all sections simultaneously
+        btn_save_all = ctk.CTkButton(self.sys_card, text="💾 Save All Configuration Profiles", font=("Arial", 14, "bold"), width=320, height=40, fg_color="#2ecc71", hover_color="#27ae60", command=lambda: self.save_all_settings())
+        btn_save_all.pack(pady=(10, 35), padx=25, anchor="w")
+
+    # === INTERVIEW HIGHLIGHT: PERSISTENCE SUBSYSTEM BACKEND HANDLERS ===
     def save_view_preference(self):
         """Persists the selected UI perspective element into the relational settings table registers."""
-        # 此时 self.view_menu 已经百分百存在，不会再报 AttributeError
         selected_view = self.view_menu.get()
-        import sqlite3
         try:
+            import sqlite3
             conn = sqlite3.connect('mepio_system.db')
             cursor = conn.cursor()
             cursor.execute("UPDATE system_settings SET default_view = ? WHERE setting_id = 1", (selected_view,))
@@ -1394,16 +1489,71 @@ class SettingsPage(BasePage):
         except Exception as e:
             print(f"Error persisting configuration metadata: {e}")
 
-    def render_fee_rates_section(self, container_frame):
-        """Renders the existing platform commission configuration elements if needed."""
-        # 这里预留你原本 Settings 页面里其他的费率设置 UI（如果没有也可以先空着）
-        pass
+    def save_fee_configuration(self):
+        """Persists parsed dynamic multiplier percentage entry data into the system settings schema rows."""
+        try:
+            shopee_fee = float(self.ent_shopee.get() or 5.5)
+            tiktok_fee = float(self.ent_tiktok.get() or 3.2)
+            lazada_fee = float(self.ent_lazada.get() or 4.0)
+
+            import sqlite3
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE system_settings 
+                SET shopee_fee = ?, tiktok_fee = ?, lazada_fee = ? 
+                WHERE setting_id = 1
+            """, (shopee_fee, tiktok_fee, lazada_fee))
+            conn.commit()
+            conn.close()
+            print("Success: Relational platform configuration parameters parsed and deployed to disk storage registry.")
+        except ValueError:
+            print("Configuration Fault: Input entry must convert to float types.")
+        except Exception as e:
+            print(f"Configuration Database Fault: {e}")
 
     def toggle_dark_mode(self):
         if self.dark_mode_switch.get() == 1:
             ctk.set_appearance_mode("dark")
+            print("Subsystem GUI Log: Application layout successfully shifted to 'dark' mode profile.")
         else:
             ctk.set_appearance_mode("light")
+            print("Subsystem GUI Log: Application layout successfully shifted to 'light' mode profile.")
+
+    # === yj: GEOMETRY PERSISTENCE BACKEND HANDLERS ===
+    def save_geometry_preference(self):
+        """Parses the selected UI window dimensions string token and logs it to relational registers."""
+        selected_opt = self.geo_menu.get()
+        # Extract the pure numeric dimension string from option (e.g., '1280x720')
+        pure_geometry = selected_opt.split(" ")[0]
+        
+        try:
+            conn = sqlite3.connect('mepio_system.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE system_settings SET app_geometry = ? WHERE setting_id = 1", (pure_geometry,))
+            conn.commit()
+            conn.close()
+            
+            # Instantly re-scale the app workspace matrix frame layout
+            self.controller.geometry(pure_geometry)
+            print(f"Success: System master resolution geometry scaled and locked to '{pure_geometry}'.")
+        except Exception as write_fault:
+            print(f"Geometry Pipeline Fault: {write_fault}")
+    # === yj: END OF GEOMETRY PERSISTENCE ===
+
+    # === yj: ATOMIC GLOBAL MULTI-SETTING PERSISTENCE PIPELINE ===
+    def save_all_settings(self):
+        """Executes sequential pipeline updates across all independent persistence handlers at once."""
+        print("Subsystem Log: Initiating atomic global save sequence across database tables...")
+        
+        # Sequentially invoke individual persistence routines to secure entries
+        self.save_view_preference()
+        self.save_fee_configuration()
+        self.save_geometry_preference()
+        
+        # Optional: You can pop up a standard system banner here if tkinter messagebox is imported
+        print("Success: All local workspace preferences and parameters committed successfully.")
+    # === yj: END OF GLOBAL PERSISTENCE PIPELINE ===
 
 class HelpPage(BasePage):
     def __init__(self, parent, controller):
@@ -1418,6 +1568,20 @@ class HelpPage(BasePage):
         
         desc = ctk.CTkLabel(self, text="Need assistance with inventory matching or fee calculation? Contact our technical support team.", font=("Arial", 12), text_color="gray")
         desc.pack(anchor="w", padx=30, pady=(0, 20))
+
+        # Scrollable container mapping systemic guide nodes to keep information accessible
+        help_text = ctk.CTkTextbox(self, height=220, font=("Arial", 13), corner_radius=12, border_width=1)
+        help_text.pack(pady=(5, 15), padx=30, fill="x", expand=False)
+        
+        # Injects the structured functional user reference logs cleanly on runtime instantiation
+        help_text.insert("0.0", "MEPIO SYSTEM DOCUMENTATION & OPERATIONAL MANUAL\n\n"
+                               "1. DASHBOARD: View real-time aggregated cross-channel profit margins, live telemetry, low-stock notifications, and localized delivery time analysis charts.\n\n"
+                               "2. CALCULATOR: Pre-calculate comprehensive net profit variations factoring dynamic platform commission fees prior to structural product listing.\n\n"
+                               "3. LOGISTICS: Standardize shipping delivery timelines, handle fulfillment logs, and inspect localized state order tracking records.\n\n"
+                               "4. INVENTORY: Manage enterprise warehouse structures, track dynamic stock units, adjust unit cost prices, and trigger safety threshold counters.\n\n"
+                               "5. SETTINGS: Adjust system-wide baseline platform percentage commission matrices for Shopee, Lazada, and TikTok View pipelines, and save startup view perspective preferences.\n\n"
+                               "6. HELP & SUPPORT: Access system architectural documentation guidelines and launch instant external hyperlink communication conduits to our technical help desk.")
+        help_text.configure(state="disabled")  # Sets to read-only status preventing administrative mutations
         
         # 2. Centralized Communication Section Container
         contact_card = ctk.CTkFrame(self, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
