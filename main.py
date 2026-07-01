@@ -173,12 +173,14 @@ class DashboardPage(BasePage):
         self.stats_frame.pack(fill="x", padx=20)
 
         # === yj: RESTRUCTURED METRICS CARDS MATRIX (FIXES NAMEERROR) ===
+        safe_text_color = ("#1A1A1A", "#F0F0F0")
+
         # 1. Card 1: Total Orders
         card_orders = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
         card_orders.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_orders, text="Total Orders", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
         
-        self.lbl_orders_val = ctk.CTkLabel(card_orders, text="0 Pcs", font=("Arial", 22, "bold"), text_color=self.text_main)
+        self.lbl_orders_val = ctk.CTkLabel(card_orders, text="0 Pcs", font=("Arial", 22, "bold"), text_color=safe_text_color)
         self.lbl_orders_val.pack(pady=(5, 15))
 
         # 2. Card 2: Total Revenue
@@ -186,7 +188,7 @@ class DashboardPage(BasePage):
         card_rev.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_rev, text="Total Revenue", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
         
-        self.lbl_rev_val = ctk.CTkLabel(card_rev, text="RM 0.00", font=("Arial", 22, "bold"), text_color=self.text_main)
+        self.lbl_rev_val = ctk.CTkLabel(card_rev, text="RM 0.00", font=("Arial", 22, "bold"), text_color=safe_text_color)
         self.lbl_rev_val.pack(pady=(5, 15))
 
         # 3. Card 3: Platform Fees
@@ -194,7 +196,7 @@ class DashboardPage(BasePage):
         card_fees.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_fees, text="Platform Fees", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
         
-        self.lbl_fees_val = ctk.CTkLabel(card_fees, text="RM 0.00", font=("Arial", 18, "bold"))
+        self.lbl_fees_val = ctk.CTkLabel(card_fees, text="RM 0.00", font=("Arial", 18, "bold"), text_color=safe_text_color)
         self.lbl_fees_val.pack(pady=(5, 15))
         ctk.CTkLabel(card_fees, text="Live Calculation", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
 
@@ -203,7 +205,7 @@ class DashboardPage(BasePage):
         card_stock.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_stock, text="Low Stock", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
         
-        self.lbl_stock_val = ctk.CTkLabel(card_stock, text="0 Items", font=("Arial", 18, "bold"))
+        self.lbl_stock_val = ctk.CTkLabel(card_stock, text="0 Items", font=("Arial", 18, "bold"), text_color=safe_text_color)
         self.lbl_stock_val.pack(pady=(5, 15))
         ctk.CTkLabel(card_stock, text="Requires Attention", font=("Arial", 11, "bold"), text_color="#e74c3c").pack(pady=(0, 15))
         # === yj: END OF FIXED METRICS MATRIX ===
@@ -1315,6 +1317,7 @@ class SettingsPage(BasePage):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
         self.controller = controller
+        self.text_main = ("#1E293B", "#F1F5F9")
         
         # 主标题
         title = ctk.CTkLabel(self, text="System Configuration & Settings", font=("Arial", 24, "bold"), text_color=self.text_main)
