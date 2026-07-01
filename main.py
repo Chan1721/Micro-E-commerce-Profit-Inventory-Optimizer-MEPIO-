@@ -9,10 +9,12 @@ import datetime
 import random
 from database import init_database
 from tkinter import messagebox
+import webbrowser
 ctk.set_appearance_mode("light")
 
 #importing the login page
 from inventorypage import InventoryPage
+# from loginpage import LoginPage
 
 class MEPIOApp(ctk.CTk):
 
@@ -1405,15 +1407,100 @@ class SettingsPage(BasePage):
 
 class HelpPage(BasePage):
     def __init__(self, parent, controller):
-        super().__init__(parent, controller)
-        help_text = ctk.CTkTextbox(self, width=600, height=300, font=("Arial", 12))
-        help_text.pack(pady=10, padx=20, fill="both", expand=True)
-        help_text.insert("0.0", "MEPIO SYSTEM DOCUMENTATION\n\n"
-                               "1. DASHBOARD: View real-time profit and revenue metrics.\n"
-                               "2. CALCULATOR: Pre-calculate profit margins before product listing.\n"
-                               "3. LOGISTICS: Manage shipping fees and track local orders.\n"
-                               "4. SETTINGS: Adjust platform commission rates for Shopee/TikTok.")
-        help_text.configure(state="disabled")
+        """Initializes the Help and Support customer service frame layout."""
+        super().__init__(parent, controller)       
+        # Safe fallback text rendering colors tailored for adaptive dual-theme light/dark modes
+        safe_text_color = ("#1A1A1A", "#F0F0F0")
+        
+        # 1. Page Header Typography Nodes
+        title = ctk.CTkLabel(self, text="Help & Customer Support", font=("Arial", 24, "bold"), text_color=safe_text_color)
+        title.pack(anchor="w", padx=30, pady=(30, 10))
+        
+        desc = ctk.CTkLabel(self, text="Need assistance with inventory matching or fee calculation? Contact our technical support team.", font=("Arial", 12), text_color="gray")
+        desc.pack(anchor="w", padx=30, pady=(0, 20))
+        
+        # 2. Centralized Communication Section Container
+        contact_card = ctk.CTkFrame(self, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        contact_card.pack(pady=10, padx=30, fill="x")
+        
+        ctk.CTkLabel(contact_card, text="Direct Communication Channels", font=("Arial", 16, "bold"), text_color=safe_text_color).pack(anchor="w", padx=20, pady=(15, 5))
+        ctk.CTkLabel(contact_card, text="Click on the channels below to initiate an instant encrypted support session.", font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=(0, 15))
+        
+        # --- Channel A: WhatsApp API Routing Row ---
+        whatsapp_frame = ctk.CTkFrame(contact_card, fg_color="transparent")
+        whatsapp_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(whatsapp_frame, text="WhatsApp Support:", font=("Arial", 13, "bold"), text_color=safe_text_color).pack(side="left")
+        
+        # Hyperlink styled button configured to route operational callback sequences
+        btn_whatsapp = ctk.CTkButton(
+            whatsapp_frame, 
+            text="+60 16-9587267 (Click to Chat)", 
+            font=("Arial", 13, "underline"),
+            fg_color="transparent", 
+            hover_color=("#EAEAEA", "#3A3A3A"),
+            text_color="#2ecc71",  # Distinct brand styling for WhatsApp green color scheme
+            anchor="w",
+            width=250,
+            command=self.open_whatsapp_channel
+        )
+        btn_whatsapp.pack(side="left", padx=10)
+        
+        # --- Channel B: Gmail Mailto URI Row ---
+        email_frame = ctk.CTkFrame(contact_card, fg_color="transparent")
+        email_frame.pack(fill="x", padx=20, pady=(5, 20))
+        
+        ctk.CTkLabel(email_frame, text="Email Assistance: ", font=("Arial", 13, "bold"), text_color=safe_text_color).pack(side="left")
+        
+        # Hyperlink styled button configured to compile native system mail headers
+        btn_email = ctk.CTkButton(
+            email_frame, 
+            text="support@mepio.com (Click to Compose)", 
+            font=("Arial", 13, "underline"),
+            fg_color="transparent", 
+            hover_color=("#EAEAEA", "#3A3A3A"),
+            text_color="#e74c3c",  # Distinct brand styling for Gmail red color scheme
+            anchor="w",
+            width=250,
+            command=self.open_gmail_channel
+        )
+        btn_email.pack(side="left", padx=10)
+
+    # === INTERVIEW HIGHLIGHT: CUSTOMER REDIRECTION URI REDIRECT PIPELINES ===
+    def open_whatsapp_channel(self):
+        """Invokes the default system browser layer to open the official WhatsApp web API bridge."""
+        # Using Malaysia country dial-code 60, excluding the leading zero or plus sign
+        phone_number = "60169587267" 
+        custom_message = "Hello MEPIO Support, I have a technical inquiry regarding the system. Please assist me."
+        
+        # Format strings safely by encoding spaces into URL-compliant markers (%20)
+        encoded_msg = custom_message.replace(" ", "%20")
+        whatsapp_url = f"https://wa.me/{phone_number}?text={encoded_msg}"
+        
+        try:
+            webbrowser.open(whatsapp_url)
+            print("Subsystem Log: Routing operational link pointer to WhatsApp endpoint successfully.")
+        except Exception as redirect_fault:
+            print(f"Subsystem Link Exception - Routing aborted: {redirect_fault}")
+
+    def open_gmail_channel(self):
+        """Dispatches an OS-level mailto signal handler to launch the native mailing client workspace."""
+        support_email = "yijianchan0801@gmail.com"
+        email_subject = "MEPIO System Technical Inquiry"
+        email_body = "Dear MEPIO Support Team,\n\n[Please describe your issue here]\n\nRegards,"
+        
+        # Format string properties safely by encoding hex line breaks (%0A) and space values (%20)
+        encoded_subject = email_subject.replace(" ", "%20")
+        encoded_body = email_body.replace(" ", "%20").replace("\n", "%0A")
+        
+        # Build standard system mailto URI schema matrix
+        mailto_uri = f"mailto:{support_email}?subject={encoded_subject}&body={encoded_body}"
+        
+        try:
+            webbrowser.open(mailto_uri)
+            print("Subsystem Log: Successfully pushed target mailto headers to system registry framework.")
+        except Exception as mail_fault:
+            print(f"Subsystem Mail Exception - Redirection failed: {mail_fault}")
 
 class OrderPage(BasePage):
     def __init__(self, parent, controller):
