@@ -575,15 +575,15 @@ class DashboardPage(BasePage):
             if not isinstance(widget, ctk.CTkLabel): 
                 widget.destroy()
 
-            empty_frame = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
-            empty_frame.pack(fill="both", expand=True, pady=30)  
+        empty_frame = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
+        empty_frame.pack(fill="both", expand=True, pady=30)  
 
-            ctk.CTkLabel(empty_frame, text="📊", font=("Helvetica", 40)).pack(pady=(10, 5))
-            ctk.CTkLabel(empty_frame, text="No Benchmark Data Yet", font=("Helvetica", 14, "bold"), text_color="#94A3B8").pack() 
+        ctk.CTkLabel(empty_frame, text="📊", font=("Helvetica", 40)).pack(pady=(10, 5))
+        ctk.CTkLabel(empty_frame, text="No Benchmark Data Yet", font=("Helvetica", 14, "bold"), text_color="#94A3B8").pack() 
 
-            ctk.CTkLabel(empty_frame, text="Run your first profit calculation in the\nCalculator to generate live insights.", font=("Helvetica", 11), text_color="#64748B").pack(pady=5) 
+        ctk.CTkLabel(empty_frame, text="Run your first profit calculation in the\nCalculator to generate live insights.", font=("Helvetica", 11), text_color="#64748B").pack(pady=5) 
 
-            ctk.CTkButton(empty_frame, text="Go to Calculator", width=120, height=28, fg_color="#3498db", font=("Helvetica", 11, "bold"),command=lambda: self.master.show_page("calculator") ).pack(pady=15)        
+        ctk.CTkButton(empty_frame, text="Go to Calculator", width=120, height=28, fg_color="#3498db", font=("Helvetica", 11, "bold"),command=lambda: self.master.show_page("calculator") ).pack(pady=15)        
 
 def render_carrier_chart(self, chart_frame):
         """Queries relational tables to aggregate performance telemetry or seeds mock records for runtime demos."""
