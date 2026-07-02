@@ -17,6 +17,17 @@ class InventoryPage(ctk.CTkFrame):
         self.conn = sqlite3.connect("mepio_system.db")
         self.cursor = self.conn.cursor()
 
+        # Make sure the inventory table can actually persist a per-item low
+        # stock threshold — previously this only lived in memory (self.stock)
+        # and was lost on every restart, and the Dashboard's "Low Stock" card
+        # had no way to read it at all.
+        try:
+            self.cursor.execute(
+                "ALTER TABLE inventory ADD COLUMN threshold INTEGER DEFAULT 5")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
         # Floating dropdown windows (initialized as None)
         self._code_dropdown_win = None
         self._name_dropdown_win = None
@@ -199,9 +210,12 @@ class InventoryPage(ctk.CTkFrame):
 
     def load_stock_from_db(self):
         self.cursor.execute(
-            "SELECT sku, product_name, local_stock FROM inventory")
-        for code, name, qty in self.cursor.fetchall():
-            self.stock[code] = {"name": name, "qty": qty, "threshold": 5}
+            "SELECT sku, product_name, local_stock, threshold FROM inventory")
+        for code, name, qty, threshold in self.cursor.fetchall():
+            self.stock[code] = {
+                "name": name, "qty": qty,
+                "threshold": threshold if threshold is not None else 5
+            }
         self.refresh_stock()
 
     def add_item(self, code, name, quantity, threshold=5):
@@ -211,14 +225,15 @@ class InventoryPage(ctk.CTkFrame):
             self.stock[code] = {"name": name, "qty": quantity,
                                 "threshold": threshold}
         self.cursor.execute(
-            """INSERT INTO inventory (sku, product_name, local_stock)
-               VALUES (?, ?, ?)
+            """INSERT INTO inventory (sku, product_name, local_stock, threshold)
+               VALUES (?, ?, ?, ?)
                ON CONFLICT(sku)
                DO UPDATE SET local_stock = local_stock + excluded.local_stock""",
-            (code, name, quantity)
+            (code, name, quantity, threshold)
         )
         self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
 
     def erase_item(self, code, quantity):
         if code in self.stock:
@@ -238,6 +253,7 @@ class InventoryPage(ctk.CTkFrame):
             )
             self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
 
     def gui_add_item(self):
         item = self.entry_item.get().strip()
@@ -278,9 +294,14 @@ class InventoryPage(ctk.CTkFrame):
         try:
             value = int(self.entry_threshold.get())
             self.stock[code]["threshold"] = value
+            self.cursor.execute(
+                "UPDATE inventory SET threshold = ? WHERE sku = ?",
+                (value, code))
+            self.conn.commit()
             messagebox.showinfo("Threshold Updated",
                                 f"Low stock threshold for '{code}' set to {value}")
             self.refresh_stock()
+            self._notify_dashboard()
         except ValueError:
             messagebox.showerror("Invalid Input",
                                  "Threshold must be a number")
@@ -458,6 +479,7 @@ class InventoryPage(ctk.CTkFrame):
             self.cursor.execute("UPDATE inventory SET local_stock = ? WHERE sku = ?", (new_qty, code))
         self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
 
     # ── In-line quantity editing ─────────────────────────────────────────────
 
@@ -544,6 +566,17 @@ class InventoryPage(ctk.CTkFrame):
             )
         self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
+
+    def _notify_dashboard(self):
+        """Pushes the latest inventory numbers up to the Dashboard's
+        'Low Stock' KPI card (and other charts) so it never shows stale
+        data after an add/remove/threshold change made here."""
+        if self.controller is not None and hasattr(self.controller, "refresh_all_charts"):
+            try:
+                self.controller.refresh_all_charts()
+            except Exception:
+                pass
 
     def _select_row(self, code, name):
         self.entry_code.delete(0, tk.END)
