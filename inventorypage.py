@@ -370,7 +370,7 @@ class InventoryPage(ctk.CTkFrame):
                 lbl_name.pack(side="left", padx=4, pady=10)
                 _bind_click(lbl_name)
 
-                # Qty with +/- buttons
+                # Qty with +/- buttons and click-to-edit
                 qty_frame = ctk.CTkFrame(row, fg_color="transparent")
                 qty_frame.pack(side="left", padx=4, pady=10)
 
@@ -385,8 +385,13 @@ class InventoryPage(ctk.CTkFrame):
                              font=("Arial", 13, "bold"),
                              text_color=("#e74c3c" if is_low else "#1E293B",
                                          "#e74c3c" if is_low else "#F1F5F9"),
-                             width=30, anchor="center")
+                             width=30, anchor="center", cursor="xterm")
                 lbl_qty.pack(side="left")
+                lbl_qty.bind(
+                    "<Button-1>",
+                    lambda e, c=code, f=qty_frame, l=lbl_qty, q=qty:
+                        self.start_qty_edit(c, f, l, q)
+                )
 
                 btn_plus = ctk.CTkButton(qty_frame, text="+", width=26, height=26,
                     font=("Arial", 13, "bold"),
@@ -451,6 +456,92 @@ class InventoryPage(ctk.CTkFrame):
             self.cursor.execute("DELETE FROM inventory WHERE sku = ?", (code,))
         else:
             self.cursor.execute("UPDATE inventory SET local_stock = ? WHERE sku = ?", (new_qty, code))
+        self.conn.commit()
+        self.refresh_stock()
+
+    # ── In-line quantity editing ─────────────────────────────────────────────
+
+    def start_qty_edit(self, code, qty_frame, lbl_qty, current_qty):
+        """Replace the qty label with an editable entry box so the user can
+        type an exact new quantity directly in the row."""
+        if code not in self.stock:
+            return
+
+        # Avoid opening two editors on the same row
+        if getattr(self, "_qty_edit_active", None) == code:
+            return
+        self._qty_edit_active = code
+
+        lbl_qty.pack_forget()
+
+        edit_var = tk.StringVar(value=str(current_qty))
+        entry = ctk.CTkEntry(
+            qty_frame,
+            textvariable=edit_var,
+            width=44, height=26,
+            font=("Arial", 13, "bold"),
+            justify="center",
+            corner_radius=6
+        )
+        # Insert the entry where the label used to be (between - and + buttons)
+        entry.pack(side="left")
+        entry.focus_set()
+        entry.select_range(0, tk.END)
+
+        def commit(event=None):
+            self.commit_qty_edit(code, edit_var.get(), qty_frame, entry, lbl_qty)
+
+        def cancel(event=None):
+            self._qty_edit_active = None
+            entry.destroy()
+            lbl_qty.pack(side="left")
+
+        entry.bind("<Return>", commit)
+        entry.bind("<KP_Enter>", commit)
+        entry.bind("<FocusOut>", commit)
+        entry.bind("<Escape>", cancel)
+
+    def commit_qty_edit(self, code, new_value, qty_frame, entry, lbl_qty):
+        self._qty_edit_active = None
+
+        # Entry may already be destroyed if Escape/commit ran twice
+        try:
+            entry.destroy()
+        except Exception:
+            pass
+
+        if code not in self.stock:
+            self.refresh_stock()
+            return
+
+        new_value = new_value.strip()
+        try:
+            new_qty = int(new_value)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Quantity must be a whole number")
+            self.refresh_stock()
+            return
+
+        if new_qty < 0:
+            messagebox.showerror("Error", "Stock cannot go below 0")
+            self.refresh_stock()
+            return
+
+        self.set_qty_direct(code, new_qty)
+
+    def set_qty_direct(self, code, new_qty):
+        """Set an item's quantity to an exact value (used by in-line editing)."""
+        if code not in self.stock:
+            return
+        if new_qty == 0:
+            del self.stock[code]
+            self.cursor.execute("DELETE FROM inventory WHERE sku = ?", (code,))
+        else:
+            self.stock[code]["qty"] = new_qty
+            self.cursor.execute(
+                "UPDATE inventory SET local_stock = ? WHERE sku = ?",
+                (new_qty, code)
+            )
         self.conn.commit()
         self.refresh_stock()
 
@@ -693,4 +784,4 @@ Status: System Recorded & Reconciled
                 os.startfile(current_dir)
                 
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to open folder: {e}")    
+            messagebox.showerror("Error", f"Failed to open folder: {e}")
