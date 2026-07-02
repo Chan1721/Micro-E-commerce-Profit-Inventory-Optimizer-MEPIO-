@@ -17,12 +17,50 @@ class InventoryPage(ctk.CTkFrame):
         self.conn = sqlite3.connect("mepio_system.db")
         self.cursor = self.conn.cursor()
 
+        # FIX (bug 5): make sure the table actually exists before we try to
+        # ALTER it. Previously the ALTER TABLE below assumed the table was
+        # already created somewhere else; if InventoryPage is ever the first
+        # thing to touch the DB, "ALTER TABLE inventory ADD COLUMN..." raises
+        # sqlite3.OperationalError: no such table: inventory, and the bare
+        # except swallowed that too, so every query afterwards blew up.
+        self.cursor.execute(
+            """CREATE TABLE IF NOT EXISTS inventory (
+                   sku TEXT PRIMARY KEY,
+                   product_name TEXT,
+                   local_stock INTEGER DEFAULT 0,
+                   threshold INTEGER DEFAULT 5
+               )"""
+        )
+        self.conn.commit()
+
+        # Make sure the inventory table can actually persist a per-item low
+        # stock threshold — previously this only lived in memory (self.stock)
+        # and was lost on every restart, and the Dashboard's "Low Stock" card
+        # had no way to read it at all.
+        try:
+            self.cursor.execute(
+                "ALTER TABLE inventory ADD COLUMN threshold INTEGER DEFAULT 5")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
         # Floating dropdown windows (initialized as None)
         self._code_dropdown_win = None
         self._name_dropdown_win = None
 
         # Per-item alert state
         self.alerted_items = {}
+
+        # FIX (bug 6): suppress low-stock popups while we're doing the very
+        # first load from the DB, so the app doesn't open to a wall of
+        # blocking messageboxes for items that were already low last time
+        # the app was closed. Alerts still fire for items that *become* low
+        # during the session.
+        self._suppress_alerts = False
+
+        # In-line qty edit state
+        self._qty_edit_active = None
+        self._qty_committed = False
 
         # ── Page Header ──────────────────────────────────────────────────────
         self.header = ctk.CTkLabel(
@@ -79,9 +117,18 @@ class InventoryPage(ctk.CTkFrame):
         self.entry_code.bind("<KeyRelease>", self.show_code_suggestions)
         self.entry_code.bind("<FocusOut>",
                              lambda e: self.after(150, self.hide_code_dropdown))
+        # FIX (bug 8): pressing Down from the entry moves focus into the
+        # dropdown listbox so keyboard users can actually reach it and use
+        # Enter to select — previously the listbox's <Return> binding was
+        # unreachable because the entry always kept keyboard focus.
+        self.entry_code.bind(
+            "<Down>", lambda e: self._focus_dropdown_listbox(self._code_dropdown_win))
+
         self.entry_item.bind("<KeyRelease>", self.show_name_suggestions)
         self.entry_item.bind("<FocusOut>",
                              lambda e: self.after(150, self.hide_name_dropdown))
+        self.entry_item.bind(
+            "<Down>", lambda e: self._focus_dropdown_listbox(self._name_dropdown_win))
 
         # ── Action Buttons ───────────────────────────────────────────────────
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -98,6 +145,18 @@ class InventoryPage(ctk.CTkFrame):
             btn_frame, text="➖  Remove Item",
             command=self.gui_remove_item,
             fg_color="#c0392b", hover_color="#e74c3c",
+            font=("Arial", 13, "bold"), width=150, height=36, corner_radius=8
+        ).pack(side="left", padx=(0, 10))
+
+        # NEW FEATURE: Delete Item entirely (removes the row from inventory,
+        # regardless of its current quantity). This is different from
+        # "Remove Item", which only decrements quantity. Quantity reaching 0
+        # no longer auto-deletes an item anywhere in this file — deleting is
+        # now always an explicit, confirmed action.
+        ctk.CTkButton(
+            btn_frame, text="🗑  Delete Item",
+            command=self.gui_delete_item,
+            fg_color="#7f1d1d", hover_color="#991b1b",
             font=("Arial", 13, "bold"), width=150, height=36, corner_radius=8
         ).pack(side="left", padx=(0, 10))
 
@@ -199,45 +258,102 @@ class InventoryPage(ctk.CTkFrame):
 
     def load_stock_from_db(self):
         self.cursor.execute(
-            "SELECT sku, product_name, local_stock FROM inventory")
-        for code, name, qty in self.cursor.fetchall():
-            self.stock[code] = {"name": name, "qty": qty, "threshold": 5}
+            "SELECT sku, product_name, local_stock, threshold FROM inventory")
+        for code, name, qty, threshold in self.cursor.fetchall():
+            self.stock[code] = {
+                "name": name, "qty": qty,
+                "threshold": threshold if threshold is not None else 5
+            }
+        # FIX (bug 6): don't pop up "low stock" modals for a fresh page load —
+        # only for items that go low during the live session.
+        self._suppress_alerts = True
         self.refresh_stock()
+        self._suppress_alerts = False
 
-    def add_item(self, code, name, quantity, threshold=5):
+    def add_item(self, code, name, quantity, threshold=None):
+        # FIX (bug 3): the "Remove Item" flow already guarded against
+        # over-removal and negative results, but "Add Item" had no guard at
+        # all — a negative quantity here used to silently subtract stock.
+        if quantity <= 0:
+            messagebox.showerror("Error", "Quantity to add must be a positive number")
+            return
+
         if code in self.stock:
             self.stock[code]["qty"] += quantity
+            self.stock[code]["name"] = name
+            # FIX (bug 2): previously a threshold typed in while restocking
+            # an existing item was silently ignored (both in memory and in
+            # the DB, since the ON CONFLICT clause never touched the
+            # threshold column). Now it's honored if the user provided one;
+            # otherwise the existing threshold is kept.
+            if threshold is not None:
+                self.stock[code]["threshold"] = threshold
+            effective_threshold = self.stock[code]["threshold"]
         else:
+            effective_threshold = threshold if threshold is not None else 5
             self.stock[code] = {"name": name, "qty": quantity,
-                                "threshold": threshold}
+                                "threshold": effective_threshold}
+
         self.cursor.execute(
-            """INSERT INTO inventory (sku, product_name, local_stock)
-               VALUES (?, ?, ?)
+            """INSERT INTO inventory (sku, product_name, local_stock, threshold)
+               VALUES (?, ?, ?, ?)
                ON CONFLICT(sku)
-               DO UPDATE SET local_stock = local_stock + excluded.local_stock""",
-            (code, name, quantity)
+               DO UPDATE SET local_stock = local_stock + excluded.local_stock,
+                             product_name = excluded.product_name,
+                             threshold = excluded.threshold""",
+            (code, name, quantity, effective_threshold)
         )
         self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
 
     def erase_item(self, code, quantity):
-        if code in self.stock:
-            current_qty = self.stock[code]["qty"]
-            if quantity > current_qty:
-                messagebox.showerror(
-                    "Error",
-                    f"Cannot remove {quantity}. Only {current_qty} in stock.")
-                return
-            new_qty = current_qty - quantity
-            self.stock[code]["qty"] = new_qty
-            if new_qty == 0:
-                del self.stock[code]
-            self.cursor.execute(
-                "UPDATE inventory SET local_stock = local_stock - ? WHERE sku = ?",
-                (quantity, code)
-            )
-            self.conn.commit()
+        # FIX (bug 4): previously this silently no-op'd if the code wasn't
+        # in stock, giving the user no feedback at all (unlike set_threshold,
+        # which does validate). Now it reports the same way.
+        if code not in self.stock:
+            messagebox.showerror("Error", f"Item '{code}' not found in stock")
+            return
+
+        if quantity <= 0:
+            messagebox.showerror("Error", "Quantity to remove must be a positive number")
+            return
+
+        current_qty = self.stock[code]["qty"]
+        if quantity > current_qty:
+            messagebox.showerror(
+                "Error",
+                f"Cannot remove {quantity}. Only {current_qty} in stock.")
+            return
+
+        new_qty = current_qty - quantity
+        self.stock[code]["qty"] = new_qty
+        # NOTE: quantity reaching 0 no longer deletes the item. The item
+        # stays visible (as an out-of-stock / low-stock row) until the user
+        # explicitly deletes it with the new "Delete Item" feature.
+        self.cursor.execute(
+            "UPDATE inventory SET local_stock = ? WHERE sku = ?",
+            (new_qty, code)
+        )
+        self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
+
+    def delete_item(self, code):
+        """NEW FEATURE: permanently remove an item from inventory, regardless
+        of its current quantity. This is the only place an item is ever
+        removed from self.stock / the database — quantity changes never do
+        this anymore."""
+        if code not in self.stock:
+            messagebox.showerror("Error", f"Item '{code}' not found in stock")
+            return
+
+        self.cursor.execute("DELETE FROM inventory WHERE sku = ?", (code,))
+        self.conn.commit()
+        del self.stock[code]
+        self.alerted_items.pop(code, None)
+        self.refresh_stock()
+        self._notify_dashboard()
 
     def gui_add_item(self):
         item = self.entry_item.get().strip()
@@ -247,8 +363,8 @@ class InventoryPage(ctk.CTkFrame):
             return
         try:
             qty = int(self.entry_qty.get())
-            threshold = (int(self.entry_threshold.get())
-                         if self.entry_threshold.get() else 5)
+            threshold_str = self.entry_threshold.get().strip()
+            threshold = int(threshold_str) if threshold_str else None
             self.add_item(code, item, qty, threshold)
         except ValueError:
             messagebox.showerror("Error",
@@ -265,6 +381,36 @@ class InventoryPage(ctk.CTkFrame):
         except ValueError:
             messagebox.showerror("Error", "Quantity must be a number")
 
+    def gui_delete_item(self):
+        """NEW FEATURE: toolbar entry point for deleting an item by SKU,
+        using the same 'Item Code / SKU' field as the other actions."""
+        code = self.entry_code.get().strip()
+        if not code:
+            messagebox.showerror("Error", "Enter an item code to delete")
+            return
+        if code not in self.stock:
+            messagebox.showerror("Error", f"Item '{code}' not found in stock")
+            return
+
+        name = self.stock[code]["name"]
+        confirmed = messagebox.askyesno(
+            "Confirm Delete",
+            f"Permanently delete '{name}' ({code}) from inventory?\n"
+            f"This cannot be undone."
+        )
+        if confirmed:
+            self.delete_item(code)
+
+    def gui_delete_item_row(self, code, name):
+        """NEW FEATURE: per-row delete button in the stock table."""
+        confirmed = messagebox.askyesno(
+            "Confirm Delete",
+            f"Permanently delete '{name}' ({code}) from inventory?\n"
+            f"This cannot be undone."
+        )
+        if confirmed:
+            self.delete_item(code)
+
     def set_threshold(self):
         code = self.entry_code.get().strip()
         if not code:
@@ -278,9 +424,14 @@ class InventoryPage(ctk.CTkFrame):
         try:
             value = int(self.entry_threshold.get())
             self.stock[code]["threshold"] = value
+            self.cursor.execute(
+                "UPDATE inventory SET threshold = ? WHERE sku = ?",
+                (value, code))
+            self.conn.commit()
             messagebox.showinfo("Threshold Updated",
                                 f"Low stock threshold for '{code}' set to {value}")
             self.refresh_stock()
+            self._notify_dashboard()
         except ValueError:
             messagebox.showerror("Invalid Input",
                                  "Threshold must be a number")
@@ -310,7 +461,30 @@ class InventoryPage(ctk.CTkFrame):
         for child in self.scroll_frame.winfo_children():
             child.destroy()
 
+        # FIX (bug 7): low-stock detection and alert bookkeeping used to run
+        # only inside the filtered/searched render loop, so an item hidden
+        # by the current search text or the "OK" filter never got its alert
+        # state updated. Now we compute low-stock status and fire alerts for
+        # *every* item in self.stock first, independent of what's displayed,
+        # and only apply search/filter when deciding what to render.
+        low_status = {}
         low_items = []
+        for code, data in self.stock.items():
+            is_low = data["qty"] <= data["threshold"]
+            low_status[code] = is_low
+            if is_low:
+                low_items.append((code, data["name"], data["threshold"]))
+                if not self.alerted_items.get(code, False):
+                    self.alerted_items[code] = True
+                    if not self._suppress_alerts:
+                        messagebox.showwarning(
+                            "Low Stock Alert",
+                            f"⚠️ '{data['name']}' ({code}) is running low!\n"
+                            f"Current stock: {data['qty']}  |  Threshold: {data['threshold']}"
+                        )
+            else:
+                if code in self.alerted_items:
+                    self.alerted_items[code] = False
 
         # get search text and filter mode
         search = self.search_entry.get().strip().lower()
@@ -325,7 +499,7 @@ class InventoryPage(ctk.CTkFrame):
             for code, data in self.stock.items():
                 name, qty, threshold = (data["name"], data["qty"],
                                         data["threshold"])
-                is_low = qty <= threshold
+                is_low = low_status[code]
 
                 # skip if search text doesn't match name or code
                 if search and search not in name.lower() and search not in code.lower():
@@ -370,7 +544,7 @@ class InventoryPage(ctk.CTkFrame):
                 lbl_name.pack(side="left", padx=4, pady=10)
                 _bind_click(lbl_name)
 
-                # Qty with +/- buttons
+                # Qty with +/- buttons and click-to-edit
                 qty_frame = ctk.CTkFrame(row, fg_color="transparent")
                 qty_frame.pack(side="left", padx=4, pady=10)
 
@@ -385,8 +559,13 @@ class InventoryPage(ctk.CTkFrame):
                              font=("Arial", 13, "bold"),
                              text_color=("#e74c3c" if is_low else "#1E293B",
                                          "#e74c3c" if is_low else "#F1F5F9"),
-                             width=30, anchor="center")
+                             width=30, anchor="center", cursor="xterm")
                 lbl_qty.pack(side="left")
+                lbl_qty.bind(
+                    "<Button-1>",
+                    lambda e, c=code, f=qty_frame, l=lbl_qty, q=qty:
+                        self.start_qty_edit(c, f, l, q)
+                )
 
                 btn_plus = ctk.CTkButton(qty_frame, text="+", width=26, height=26,
                     font=("Arial", 13, "bold"),
@@ -415,18 +594,17 @@ class InventoryPage(ctk.CTkFrame):
                 lbl_badge.pack(side="left", padx=(4, 12), pady=10)
                 _bind_click(lbl_badge)
 
-                if is_low:
-                    low_items.append((code, name, threshold))
-                    if not self.alerted_items.get(code, False):
-                        self.alerted_items[code] = True
-                        messagebox.showwarning(
-                            "Low Stock Alert",
-                            f"⚠️ '{name}' ({code}) is running low!\n"
-                            f"Current stock: {qty}  |  Threshold: {threshold}"
-                        )
-                else:
-                    if code in self.alerted_items:
-                        self.alerted_items[code] = False
+                # NEW FEATURE: per-row delete button
+                btn_delete = ctk.CTkButton(
+                    row, text="🗑", width=30, height=26,
+                    font=("Arial", 12),
+                    fg_color="transparent",
+                    hover_color=("#FEE2E2", "#4B1F1F"),
+                    text_color="#c0392b",
+                    corner_radius=6,
+                    command=lambda c=code, n=name: self.gui_delete_item_row(c, n)
+                )
+                btn_delete.pack(side="right", padx=(4, 12), pady=10)
 
         # Update alert label
         if low_items:
@@ -446,13 +624,119 @@ class InventoryPage(ctk.CTkFrame):
             messagebox.showerror("Error", "Stock cannot go below 0")
             return
         self.stock[code]["qty"] = new_qty
-        if new_qty == 0:
-            del self.stock[code]
-            self.cursor.execute("DELETE FROM inventory WHERE sku = ?", (code,))
-        else:
-            self.cursor.execute("UPDATE inventory SET local_stock = ? WHERE sku = ?", (new_qty, code))
+        # NOTE: quantity reaching 0 no longer deletes the item — it stays in
+        # the list (shown as out of stock / low stock) until explicitly
+        # deleted via the new "Delete Item" feature.
+        self.cursor.execute("UPDATE inventory SET local_stock = ? WHERE sku = ?", (new_qty, code))
         self.conn.commit()
         self.refresh_stock()
+        self._notify_dashboard()
+
+    # ── In-line quantity editing ─────────────────────────────────────────────
+
+    def start_qty_edit(self, code, qty_frame, lbl_qty, current_qty):
+        """Replace the qty label with an editable entry box so the user can
+        type an exact new quantity directly in the row."""
+        if code not in self.stock:
+            return
+
+        # Avoid opening two editors on the same row
+        if self._qty_edit_active == code:
+            return
+        self._qty_edit_active = code
+        self._qty_committed = False
+
+        lbl_qty.pack_forget()
+
+        edit_var = tk.StringVar(value=str(current_qty))
+        entry = ctk.CTkEntry(
+            qty_frame,
+            textvariable=edit_var,
+            width=44, height=26,
+            font=("Arial", 13, "bold"),
+            justify="center",
+            corner_radius=6
+        )
+        # Insert the entry where the label used to be (between - and + buttons)
+        entry.pack(side="left")
+        entry.focus_set()
+        entry.select_range(0, tk.END)
+
+        def commit(event=None):
+            # FIX (bug 9): committing via Enter destroys the entry, which
+            # itself fires a synthetic <FocusOut> also bound to commit —
+            # without this guard commit_qty_edit ran a second time on an
+            # already-destroyed widget for every Enter-confirmed edit.
+            if self._qty_committed:
+                return
+            self._qty_committed = True
+            self.commit_qty_edit(code, edit_var.get(), qty_frame, entry, lbl_qty)
+
+        def cancel(event=None):
+            if self._qty_committed:
+                return
+            self._qty_committed = True
+            self._qty_edit_active = None
+            entry.destroy()
+            lbl_qty.pack(side="left")
+
+        entry.bind("<Return>", commit)
+        entry.bind("<KP_Enter>", commit)
+        entry.bind("<FocusOut>", commit)
+        entry.bind("<Escape>", cancel)
+
+    def commit_qty_edit(self, code, new_value, qty_frame, entry, lbl_qty):
+        self._qty_edit_active = None
+
+        # Entry may already be destroyed if Escape/commit ran twice
+        try:
+            entry.destroy()
+        except Exception:
+            pass
+
+        if code not in self.stock:
+            self.refresh_stock()
+            return
+
+        new_value = new_value.strip()
+        try:
+            new_qty = int(new_value)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Quantity must be a whole number")
+            self.refresh_stock()
+            return
+
+        if new_qty < 0:
+            messagebox.showerror("Error", "Stock cannot go below 0")
+            self.refresh_stock()
+            return
+
+        self.set_qty_direct(code, new_qty)
+
+    def set_qty_direct(self, code, new_qty):
+        """Set an item's quantity to an exact value (used by in-line editing)."""
+        if code not in self.stock:
+            return
+        self.stock[code]["qty"] = new_qty
+        # NOTE: quantity reaching 0 no longer deletes the item — see
+        # delete_item() for the only place that removes an item now.
+        self.cursor.execute(
+            "UPDATE inventory SET local_stock = ? WHERE sku = ?",
+            (new_qty, code)
+        )
+        self.conn.commit()
+        self.refresh_stock()
+        self._notify_dashboard()
+
+    def _notify_dashboard(self):
+        """Pushes the latest inventory numbers up to the Dashboard's
+        'Low Stock' KPI card (and other charts) so it never shows stale
+        data after an add/remove/threshold change made here."""
+        if self.controller is not None and hasattr(self.controller, "refresh_all_charts"):
+            try:
+                self.controller.refresh_all_charts()
+            except Exception:
+                pass
 
     def _select_row(self, code, name):
         self.entry_code.delete(0, tk.END)
@@ -490,13 +774,39 @@ class InventoryPage(ctk.CTkFrame):
         visible = min(len(items), 6)
         win.geometry(f"{width}x{visible * row_height + 4}+{x}+{y}")
 
-        listbox.bind("<ButtonRelease-1>",
-                     lambda e: on_select_cb(
-                         listbox.get(listbox.curselection())))
-        listbox.bind("<Return>",
-                     lambda e: on_select_cb(
-                         listbox.get(listbox.curselection())))
+        def _select_current(event=None):
+            # FIX (bug 8): the old binding did listbox.get(listbox.curselection())
+            # unconditionally, which raises IndexError if Return fires (or the
+            # binding is reached some other way) with nothing selected — e.g.
+            # right after the dropdown opens and no item has been highlighted
+            # yet. It was also unreachable in practice since the entry widget
+            # always kept keyboard focus; see the <Down> bindings above that
+            # move focus here so this is now actually usable.
+            selection = listbox.curselection()
+            if not selection:
+                return "break"
+            on_select_cb(listbox.get(selection[0]))
+            return "break"
+
+        listbox.bind("<ButtonRelease-1>", _select_current)
+        listbox.bind("<Return>", _select_current)
         return win
+
+    def _focus_dropdown_listbox(self, win):
+        """FIX (bug 8) helper: move keyboard focus from the entry into the
+        floating suggestion listbox and highlight the first item, so arrow
+        keys / Enter can be used to pick a suggestion."""
+        if win is None:
+            return "break"
+        for child in win.winfo_children():
+            if isinstance(child, tk.Listbox):
+                child.focus_set()
+                if child.size() > 0:
+                    child.selection_clear(0, tk.END)
+                    child.selection_set(0)
+                    child.activate(0)
+                return "break"
+        return "break"
 
     def show_code_suggestions(self, event=None):
         typed = self.entry_code.get().strip()
@@ -693,4 +1003,4 @@ Status: System Recorded & Reconciled
                 os.startfile(current_dir)
                 
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to open folder: {e}")    
+            messagebox.showerror("Error", f"Failed to open folder: {e}")
