@@ -183,6 +183,7 @@ class MEPIOApp(ctk.CTk):
         dash_page = self.pages.get("dash")
         if dash_page is not None:
             dash_page.load_benchmark_data()
+            dash_page.on_page_refresh()
 
         logistics_page = self.pages.get("logistics")
         if logistics_page is not None and getattr(logistics_page, "_carrier_chart_frame_ref", None) is not None:
@@ -243,14 +244,20 @@ class DashboardPage(BasePage):
         self.lbl_fees_val.pack(pady=(5, 15))
         ctk.CTkLabel(card_fees, text="Live Calculation", font=("Arial", 11, "bold"), text_color="#2ecc71").pack(pady=(0, 15))
 
-        # 4. Card 4: Low Stock
-        card_stock = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"))
+        # 4. Card 4: Low Stock (clickable — routes straight to the Inventory page)
+        card_stock = ctk.CTkFrame(self.stats_frame, corner_radius=15, fg_color=("#FFFFFF", "#2B2B2B"), cursor="hand2")
         card_stock.pack(side="left", padx=10, fill="both", expand=True)
         ctk.CTkLabel(card_stock, text="Low Stock", font=("Arial", 12), text_color="gray").pack(pady=(15, 0))
         
         self.lbl_stock_val = ctk.CTkLabel(card_stock, text="0 Items", font=("Arial", 18, "bold"), text_color=safe_text_color)
         self.lbl_stock_val.pack(pady=(5, 15))
-        ctk.CTkLabel(card_stock, text="Requires Attention", font=("Arial", 11, "bold"), text_color="#e74c3c").pack(pady=(0, 15))
+        lbl_stock_cta = ctk.CTkLabel(card_stock, text="Requires Attention →", font=("Arial", 11, "bold"), text_color="#e74c3c")
+        lbl_stock_cta.pack(pady=(0, 15))
+
+        # Clicking anywhere on the card (or its inner labels) jumps straight to Inventory
+        self.card_stock = card_stock
+        for widget in (card_stock, self.lbl_stock_val, lbl_stock_cta):
+            widget.bind("<Button-1>", lambda e: self.master.show_page("inv"))
         # === yj: END OF FIXED METRICS MATRIX ===
 
         # Bottom layout wrapper (Left and Right)
@@ -338,6 +345,9 @@ class DashboardPage(BasePage):
             ctk.CTkLabel(status_box, text=f"MEPIO Core v1.0.0", font=("Arial", 10), text_color="gray").pack(anchor="w", padx=12)
             ctk.CTkLabel(status_box, text=f"Last Backup: {current_date}", font=("Arial", 10), text_color="gray").pack(anchor="w", padx=12, pady=(0, 12))
 
+        # Populate the KPI cards with live numbers right away instead of leaving
+        # them on their static "0" placeholders until the page is re-shown.
+        self.on_page_refresh()
 
       
     def fetch_live_dashboard_metrics(self):
@@ -389,12 +399,18 @@ class DashboardPage(BasePage):
                 except:
                     pass
 
-            # 4. Run condition scanner to detect matching low-stock hazards
+            # 4. Run condition scanner to detect matching low-stock hazards.
+            #    NOTE: mirrors InventoryPage's own logic (qty <= per-item threshold,
+            #    default threshold = 5) instead of a hardcoded "stock < 10" guess,
+            #    and uses the real column name (local_stock) so the count this
+            #    card shows always matches what the Inventory page marks as low.
             try:
-                cursor.execute("SELECT COUNT(*) FROM inventory WHERE stock < 10")
+                cursor.execute(
+                    "SELECT COUNT(*) FROM inventory WHERE local_stock <= COALESCE(threshold, 5)"
+                )
                 low_stock_count = cursor.fetchone()[0]
             except sqlite3.OperationalError:
-                low_stock_count = 3  
+                low_stock_count = 0
 
             conn.close()
         except sqlite3.OperationalError:
@@ -405,9 +421,10 @@ class DashboardPage(BasePage):
     def on_page_show(self, event):
         if event.widget == self:
             self.load_benchmark_data()
+            self.on_page_refresh()
 
     # === (Live Analytics Sync Pipelines) ===
-    def on_page_refresh(self, event):
+    def on_page_refresh(self, event=None):
         """Dynamic bridge listener triggering UI card text configuration whenever the user switches back to dashboard."""
         
         # Safely re-configure underlying text labels targets to project active data streams
@@ -419,6 +436,11 @@ class DashboardPage(BasePage):
             self.lbl_rev_val.configure(text=f"RM {t_rev:.2f}")
         if hasattr(self, 'lbl_stock_val') and self.lbl_stock_val:
             self.lbl_stock_val.configure(text=f"{t_stock} Items")
+            # Visually flag the card when there really is something to act on
+            if hasattr(self, 'card_stock') and self.card_stock:
+                self.card_stock.configure(
+                    fg_color=("#FEF2F2", "#3B1E1E") if t_stock > 0 else ("#FFFFFF", "#2B2B2B")
+                )
         if hasattr(self, 'lbl_fees_val') and self.lbl_fees_val:
             self.lbl_fees_val.configure(text=f"RM {t_fees:.2f}")
 
