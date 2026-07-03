@@ -65,6 +65,24 @@ def open_register_window(login_root):
     reg_confirm_entry = CTk.CTkEntry(right, width=320, height=40, border_color="#d0d0d0", show="*", corner_radius=8)
     reg_confirm_entry.place(x=44, y=305)
 
+    show_pwd_var = tk.IntVar(value=0)
+    
+    def toggle_password():
+        if show_pwd_var.get() == 1:
+            #if the checkbox is checked, show the password
+            reg_password_entry.configure(show="")
+            reg_confirm_entry.configure(show="")
+        else:
+            # if the checkbox is unchecked, hide the password
+            reg_password_entry.configure(show="*")
+            reg_confirm_entry.configure(show="*")
+            
+    show_pwd_cb = CTk.CTkCheckBox(right, text="Show", variable=show_pwd_var, command=toggle_password,
+                                  font=("Helvetica", 11), border_width=2,
+                                  width=50, height=20,
+                                  fg_color="#3498db", bg_color="#fcfcfc")
+    show_pwd_cb.place(x=295, y=236)
+
     def handle_register():
         username = reg_user_entry.get()
         pwd = reg_password_entry.get()
