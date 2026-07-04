@@ -80,7 +80,8 @@ def init_database():
         shopee_fee REAL DEFAULT 5.5,
         tiktok_fee REAL DEFAULT 3.2,
         lazada_fee REAL DEFAULT 4.0,
-        default_view TEXT DEFAULT 'Dashboard'
+        default_view TEXT DEFAULT 'Dashboard',
+        app_geometry TEXT                      
     )''')
 
     # --- Migration safety check: add default_view column if it doesn't exist yet ---
@@ -93,6 +94,9 @@ def init_database():
             ALTER TABLE system_settings ADD COLUMN default_view TEXT DEFAULT 'Dashboard'
         ''')
 
+    if 'app_geometry' not in existing_columns:
+        cursor.execute("ALTER TABLE system_settings ADD COLUMN app_geometry TEXT")
+        
     # Migration: add default_view column if it doesn't exist yet (for existing databases)
     cursor.execute("PRAGMA table_info(system_settings)")
     existing_columns = [row[1] for row in cursor.fetchall()]
