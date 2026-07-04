@@ -129,11 +129,11 @@ def init_database():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    # =========================================================================
+# =========================================================================
     # 8. LINKED ACCOUNTS TABLE
     # =========================================================================
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS linked_accounts (
+    CREATE TABLE IF NOT EXISTS linked_accounts (\
         account_id INTEGER PRIMARY KEY AUTOINCREMENT,
         platform TEXT NOT NULL,
         shop_id TEXT NOT NULL,
@@ -141,10 +141,103 @@ def init_database():
         last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # Ensure carrier_shipments table exists at startup without dangling SELECT statements
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS carrier_shipments (
+            shipment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            carrier_name TEXT,
+            delivery_days REAL,
+            is_on_time INTEGER,
+            shipping_cost REAL
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
     print("Database initialization successful! 'mepio_system.db' created.")
+
+
+# =========================================================================
+# NEW INDEPENDENT BACKEND FUNCTION (Call this from main.py)
+# =========================================================================
+def get_carrier_efficiency_data(carriers):
+    """
+    Queries the database to aggregate real logistics fulfillment metrics.
+    Handles SQL exceptions internally and returns structured analytics safely.
+    """
+    import sqlite3
+
+    # Default structural fallbacks to return if data is absent or an error occurs
+    avg_days = [0.0] * len(carriers)
+    on_time_pct = [0.0] * len(carriers)
+    cost_per_pkg = [0.0] * len(carriers)
+
+    try:
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+        
+        # Aggregate true tracking data via relational grouped selections
+        cursor.execute('''
+            SELECT carrier_name, 
+                   AVG(delivery_days), 
+                   (SUM(is_on_time) * 100.0 / COUNT(*)), 
+                   AVG(shipping_cost) 
+            FROM carrier_shipments 
+            GROUP BY carrier_name
+        ''')
+        analytics_rows = cursor.fetchall()
+        conn.close()
+
+        # Map the active rows directly onto the corresponding tracking nodes
+        for row in analytics_rows:
+            db_name = row[0]
+            if db_name in carriers:
+                idx = carriers.index(db_name)
+                # Neutralize potential NULL values to guard Matplotlib formatting strings
+                avg_days[idx] = row[1] or 0.0
+                on_time_pct[idx] = row[2] or 0.0
+                cost_per_pkg[idx] = row[3] or 0.0
+
+    except sqlite3.OperationalError as db_err:
+        print(f"Logistics DB Subsystem Fault: {db_err}")
+
+    return avg_days, on_time_pct, cost_per_pkg
+
+def save_calculator_simulation(platform, selling_price, cost_price, fee, net_profit):
+    """
+    Saves a clean calculator record to the database if needed.
+    [CLEANED] Isolated from standard dashboard telemetry to prevent data pollution.
+    """
+    import sqlite3
+    try:
+        conn = sqlite3.connect('mepio_system.db')
+        cursor = conn.cursor()
+        
+        # Ensure the table structure exists
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS profit_records (
+                record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sku TEXT,
+                platform TEXT,
+                selling_price REAL,
+                cost_price REAL,
+                platform_fee REAL,
+                net_profit REAL,
+                date_recorded TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Insert using a clean identifier "CALC_ESTIMATE" instead of polluting general stock metrics
+        cursor.execute("""
+            INSERT INTO profit_records (sku, platform, selling_price, cost_price, platform_fee, net_profit)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, ("CALC_ESTIMATE", platform, selling_price, cost_price, fee, net_profit))
+        
+        conn.commit()
+        conn.close()
+    except sqlite3.OperationalError as db_err:
+        print(f"Calculator DB Storage Fault: {db_err}")
 
 if __name__ == "__main__":
     init_database()
